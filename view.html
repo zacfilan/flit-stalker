@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Kendo UI Snippet</title>
+    <link href="kendo/styles/default-ocean-blue.css" rel="stylesheet">
+    <script src="kendo/js/jquery.min.js"></script>
+    <script src="kendo/js/kendo.all.min.js"></script>
+</head>
+<body>
+    <ul id="menu">
+        <li>File
+            <ul>
+                <li>Sub Item 1</li>
+                <li>Sub Item 2</li>
+                <li>Sub Item 3</li>
+            </ul>
+        </li>
+        <li>View
+            <ul>
+                <li>Sub Item 1</li>
+                <li>Sub Item 2</li>
+                <li>Sub Item 3</li>
+            </ul>
+        </li>
+        <li>Help
+            <ul>
+                <li>Sub Item 1</li>
+                <li>Sub Item 2</li>
+                <li>Sub Item 3</li>
+            </ul>
+        </li>
+    </ul>
+    <div id="toolbar"></div>
+    <div id="hSplitter">
+        <div id="leftVSplitter">
+            <div>
+                <canvas id="swimlane" width="1920" height="1080"></canvas>
+            </div>
+            <div id="tabstrip">
+                <ul>
+                    <li>! Events</li>
+                    <li>Search Results</li>
+                </ul>
+                <div>Nothing Here!</div>
+                <div id="grid"></div>
+            </div>
+        </div>
+    <div>Pane B</div>
+    </div>
+
+    <script type="module" src="loupe.js"></script>
+
+<style>
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        margin: 0;
+    }
+    #hSplitter {
+        flex-grow: 1;
+    }
+    #swimlane {
+       background-color: #00252e
+    }
+</style>
+
+</body>
+</html>
