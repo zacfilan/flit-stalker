@@ -1,11 +1,33 @@
+// Abstraction of the text name of the node at the top
+// of a swim lane
 class MeshNode {
-    constructor({label = '', x = 0, textWidth} = {})
+    constructor({label = '', x = 0, measureText} = {})
     {
         this.label = label;
+        // this 
         this.x = x;
         
         // will be calculated once the text is drawn
-        this.textWidth = textWidth;
+        this.measureText = measureText;
+
+        // calc the bounding box
+        this.textWidth = measureText.width;
+        this.textHeight = 12;//parseInt(this.ctx.font, 10); // assuming the font size is the first value in the font string
+        let padding = 5; // padding around the text
+        this.bb = {
+            width: this.textWidth + 2 * padding,
+            height: this.textHeight + 2 * padding,
+            
+            // should be constant, until I allow stacking
+            y1: 40 - 10*2 - 2*padding
+        };
+        this.calcBB();
+        console.log(`${this.label} is ${this.bb.width}x${this.bb.height}`);
+    }
+
+    // calculate x1 of the bounding box
+    calcBB() {
+        this.bb.x1 = this.x - this.textWidth/2 -2;
     }
 }
 
@@ -49,7 +71,7 @@ class Swimlane {
         this.ctx.fillStyle = 'white';
         this.ctx.strokeStyle = 'white';
         this.ctx.lineWidth = 2;
-        this.ctx.font = '12px Arial';
+        this.ctx.font = '10px Arial';
         this.ctx.textAlign = 'center';
 
         this.startTime = startTime;
@@ -65,23 +87,28 @@ class Swimlane {
         this.yscale = 1;
         
         let that = this;
-        canvas.addEventListener('mousedown', function(event) {
+        canvas.addEventListener('mousemove', function(event) {
             // Get the mouse position
             let rect = canvas.getBoundingClientRect();
             let mouseX = event.clientX - rect.left;
             let mouseY = event.clientY - rect.top;
             console.log(`Mouse down at (${mouseX}, ${mouseY})`);
-            let y = that.yorigin - 10;
 
             for(let node of that.nodes) {
-                console.log(`${node.label} (${node.x}, ${y-16}) - (${node.x + node.textWidth}, ${y})`);
+                console.log(`${node.label} (${node.bb.x1}, ${node.bb.y1}) - (${node.bb.x1 + node.bb.width}, ${node.bb.y1+node.bb.height})`);
                 // Check if the mouse is within the bounds of the text
-                if ( node.x < mouseX && mouseX < node.x + node.textWidth && 
-                     y - 16 < mouseY && mouseY < y) {
+                if ( node.bb.x1 < mouseX && mouseX < node.bb.x1 + node.bb.width && 
+                     node.bb.y1 < mouseY && mouseY < node.bb.y1 + node.bb.height) {
+
+                    that.drawBorder(node);
                     console.log(`Mouse down on ${node.label}`);
                 }
             }
         });
+    }
+
+    drawBorder(node) {
+        this.ctx.strokeRect(node.bb.x1, node.bb.y1, node.bb.width, node.bb.height);
     }
 
     clear() {
@@ -89,10 +116,11 @@ class Swimlane {
     }
 
     addNode({label, x}) {
+        // rebase the x coordinate to the new origin
         x += this.xorigin;
-        let textWidth = this.ctx.measureText(label).width;
-        let mn = new MeshNode({label, x, textWidth});
-        this.nodes.push(mn);
+        let measureText = this.ctx.measureText(label);
+        let mn = new MeshNode({label, x, measureText});
+       this.nodes.push(mn);
         return mn
     }
 
@@ -105,9 +133,10 @@ class Swimlane {
     drawNode(node) {
         this.ctx.beginPath();
         this.ctx.moveTo(node.x, this.yorigin+1);
-        this.ctx.fillText(node.label, node.x, this.yorigin - 10);
+        this.ctx.fillText(node.label, node.x, this.yorigin - 17.25);
         this.ctx.lineTo(node.x, this.ctx.canvas.height);
         this.ctx.strokeStyle = '#1e6b65';
+        this.ctx.fillStyle = '#1e6b65';
         this.ctx.stroke();
     }
 
@@ -125,6 +154,8 @@ class Swimlane {
         this.ctx.beginPath();
         this.ctx.moveTo(startPoint.x, startPoint.y);
         this.ctx.lineTo(endPoint.x, endPoint.y);
+        this.ctx.strokeStyle = '#689500';
+        this.ctx.fillStyle = '#689500';
         this.ctx.stroke();
 
         // Draw the arrow head as a filled triangle
@@ -137,7 +168,6 @@ class Swimlane {
     }
 
     drawAxis() {
-        this.ctx.strokeStyle = '#93a1a1';
 
         this.ctx.beginPath();
         this.ctx.moveTo(0, this.yorigin);
@@ -153,7 +183,7 @@ class Swimlane {
     draw() {
         this.clear();
 
-        // axis and nodes are drawn with yscale = 1
+        this.ctx.strokeStyle = '#93a1a1';
         this.drawAxis();
         for (let node of this.nodes) {
             this.drawNode(node);

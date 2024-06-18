@@ -7,8 +7,18 @@ let n2 = sl.addNode({label: "Node 1", x: 50});
 
 sl.addMessage({
     id: "ReadUnique 0x20080000000", 
-    start: {node: n1, time: 10}, 
-    end: {node: n2, time: 20}
+    start: {node: n1, time: 0}, 
+    end: {node: n2, time: 55}
+});
+sl.addMessage({
+    id: "ReadUnique 0x20081111111", 
+    start: {node: n1, time: 40}, 
+    end: {node: n2, time: 60}
+});
+sl.addMessage({
+    id: "ReadUnique 0x20082222222", 
+    start: {node: n1, time: 20}, 
+    end: {node: n2, time: 70}
 });
 
 sl.draw();
