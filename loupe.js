@@ -46,17 +46,29 @@ orientation: "vertical"
 $("#tabstrip").kendoTabStrip({
 });
 
-$("#grid").kendoGrid({
-columns: [
-    { field: "Message" },
-    { field: "Source Scope" },
-    { field: "Target Scope" },
-    { field: "Timestamp" }
-],
-dataSource: [
-    { Message: "Jane Doe", age: 30},
-    { Message: "John Doe", age: 33},
-]
+// FIXME: this does load the who 11MB into memory, but the bottleneck is the rendering
+// the paging fixes that.
+$.getJSON('messages.json', function(data) {
+    $("#grid").kendoGrid({
+        columns: [
+            { field: "Message" },
+            { field: "Source Scope" },
+            { field: "Target Scope" },
+            { field: "Timestamp" }
+        ],
+        dataSource: {
+            data: data,
+            pageSize: 50
+        },
+        pageable: true,
+        resizable: true,
+        selectable: "row",
+        change: function(e) {
+            var selectedRows = this.select();
+            var dataItem = this.dataItem(selectedRows[0]);
+            console.log(dataItem);
+            // FIXME: now that I've clicked on a row add it to the swimlane
+            // do something here
+        }
+    });
 });
-
-
