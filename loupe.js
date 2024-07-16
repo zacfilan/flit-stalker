@@ -2,25 +2,6 @@ import {Swimlane, MeshNode, Message} from './swimlane.js';
 
 let sl = new Swimlane(0, 100, $("#swimlane")[0]);
 
-let n1 = sl.addNode({label: "Node 0", x: 10});
-let n2 = sl.addNode({label: "Node 1", x: 50});
-
-sl.addMessage({
-    id: "ReadUnique 0x20080000000", 
-    start: {node: n1, time: 0}, 
-    end: {node: n2, time: 55}
-});
-sl.addMessage({
-    id: "ReadUnique 0x20081111111", 
-    start: {node: n1, time: 40}, 
-    end: {node: n2, time: 60}
-});
-sl.addMessage({
-    id: "ReadUnique 0x20082222222", 
-    start: {node: n1, time: 20}, 
-    end: {node: n2, time: 70}
-});
-
 sl.draw();
 
 $("#menu").kendoMenu({
@@ -67,8 +48,7 @@ $.getJSON('messages.json', function(data) {
             var selectedRows = this.select();
             var dataItem = this.dataItem(selectedRows[0]);
             console.log(dataItem);
-            // FIXME: now that I've clicked on a row add it to the swimlane
-            // do something here
+            sl.addOrUpdateMessage(dataItem);
         }
     });
 });

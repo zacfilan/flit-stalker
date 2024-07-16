@@ -1,16 +1,22 @@
-// Abstraction of the text name of the node at the top
-// of a swim lane
+/**
+ * Abstraction of the text name of the node at the top
+ * of a swim lane
+ * */
 class MeshNode {
-    constructor({ label = '', x = 0, measureText } = {}) {
-        this.label = label;
+    /**
+     * Copy-like constructor
+     * @param {MeshNode} other config object
+     */
+    constructor(other) {
+        this.label = other.label;
         // this 
-        this.x = x;
+        this.x = other.x;
 
         // will be calculated once the text is drawn
-        this.measureText = measureText;
+        this.measureText = other.measureText;
 
         // calc the bounding box
-        this.textWidth = measureText.width;
+        this.textWidth = this.measureText.width;
         this.textHeight = 12;//parseInt(this.ctx.font, 10); // assuming the font size is the first value in the font string
         let padding = 5; // padding around the text
         this.bb = {
@@ -22,7 +28,6 @@ class MeshNode {
         };
         this.calcBB();
         this.color = '#1e6b65';
-        console.log(`${this.label} is ${this.bb.width}x${this.bb.height}`);
     }
 
     // calculate x1 of the bounding box
@@ -32,40 +37,87 @@ class MeshNode {
 }
 
 /**
- * Represents the start or end of a message.
+ * Represents the start point or end point of a message.
  */
-class MessageEndpoint {
-    constructor({ node, time }) {
-        this.node = node;
-        this.time = time;
+class MessageBoundary {
+    /**
+     * @brief Copy-like constructor
+     * @param {MessageBoundary} other config object
+     */
+    constructor(other) {
+        /** The node id, used to lookup the node */
+        this.node = other.node;
+
+        /** the time */
+        this.time = other.time;
     }
 }
 
 /**
- * Represents a message between two nodes.
- */
+ * @brief Represents a message between two nodes
+ *  */
 class Message {
-    constructor({ id, start, end }) {
-        this.id = id;
+    /**
+     * Copy-like constructor 
+     * @param {Message} other config object
+     */
+    constructor(other) {
+        /** Source node identifier 
+         * e.g. "HN-S [417]
+        */
+        this["Source Scope"] = other["Source Scope"]; 
 
-        // start NODE of the message (x=const line)
-        this.start = new MessageEndpoint(start);
+        /** Target node identifier
+         * e.g. "SN-F [NID 24]",
+         */
+        this["Target Scope"] = other["Target Scope"]; 
 
-        // end NODE of the message (x=const line)
-        this.end = new MessageEndpoint(end);
+        /** The timestamp on the message, start time? */
+        this.Timestamp = other.Timestamp;
+
+        /**
+         * The message text <opcode address>
+         * e.g. "access 0x20081151BC0"
+         */
+        this.Message = other.Message; 
+
+        this.start = other.start;
+        this.end = other.end;
     }
 }
 
+/** The number of messages in memory
+ * these will also be the id's of the messages
+ */
+Message.count = 0;
+
+/**
+ * A message only comes in with one timestamp, i assume that is the start, so the end of the message is 
+ * this much later
+ */
+Message.DEFAULT_DURATION = 50;
+
+/**
+ * Abstract point in 2D space
+ */
 class Point {
-    constructor(x, y) {
+    /**
+     * 
+     * @param {*} x 
+     * @param {*} y 
+     */
+    constructor(x,y) {
         this.x = x;
         this.y = y;
     }
 }
 
+/**
+ * This is the swimlane widget. view and model.
+ */
 class Swimlane {
     constructor(startTime, endTime, canvas) {
-        this, canvas = canvas;
+        this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
         this.ctx.fillStyle = 'white';
@@ -78,17 +130,28 @@ class Swimlane {
         this.endTime = endTime;
         this.timeDuration = endTime - startTime;
 
-        console.log("canvas: " + this.ctx);
 
-        this.nodes = [];
+        /** nodes are the named swimlanes */
+        this.nodes = {};
+
+        this.node_order = []; // this is the current display order of the nodes
+
+        /** messages are the arrows between the nodes */
         this.msgs = [];
+
         this.xorigin = 118;
         this.yorigin = 40;
-        this.yscale = 1;
-        let that = this;
 
-        /// the active node (the node under the cursor)
+        /** Position newly added nodes to the right */
+        this.last_node_x = this.xorigin;
+        
+         this.yscale = 1;
+
+        /** the node under the cursor */
         this.activeNode = null;
+
+        let that = this;
+        console.log("canvas: " + this.ctx);
 
         canvas.addEventListener('mousedown', function (event) {
             // Get the mouse position
@@ -97,7 +160,8 @@ class Swimlane {
             let mouseY = event.clientY - rect.top;
             console.log(`Mouse down at (${mouseX}, ${mouseY})`);
         
-            for (let node of that.nodes) {
+            // FIXME: speed up by using array?
+            for (let node of Object.values(that.nodes)) {
                 // Check if the mouse is within the bounds of the text
                 if (node.bb.x1 < mouseX && mouseX < node.bb.x1 + node.bb.width &&
                     node.bb.y1 < mouseY && mouseY < node.bb.y1 + node.bb.height) {
@@ -129,7 +193,8 @@ class Swimlane {
             let mouseY = event.clientY - rect.top;
             //console.log(`Mouse down at (${mouseX}, ${mouseY})`);
 
-            for (let node of that.nodes) {
+            // FIXME: use dedicated array for speed?
+            for (let node of Object.values(that.nodes)) {
                 //console.log(`${node.label} (${node.bb.x1}, ${node.bb.y1}) - (${node.bb.x1 + node.bb.width}, ${node.bb.y1 + node.bb.height})`);
                 // Check if the mouse is within the bounds of the text
                 if (node.bb.x1 < mouseX && mouseX < node.bb.x1 + node.bb.width &&
@@ -156,21 +221,20 @@ class Swimlane {
                         });
                         canvas.dispatchEvent(customEvent);
                     }
-                    // else we are just putzing around in the node
+                    // else we are just moving within the active node
                 }
                 else {
-                    if (this.activeNode !== node) {
-                        if (this.activeNode) {
-                            let customEvent = new CustomEvent('canvas_node_exit', {
-                                detail: {
-                                    node: node,
-                                    mouseX: mouseX,
-                                    mouseY: mouseY
-                                }
-                            });
-                            canvas.dispatchEvent(customEvent);
-                        }
-                        this.activeNode = node;
+                    // we are moving around outside of the nodes
+                    if (this.activeNode) {
+                        let customEvent = new CustomEvent('canvas_node_exit', {
+                            detail: {
+                                node: node,
+                                mouseX: mouseX,
+                                mouseY: mouseY
+                            }
+                        });
+                        this.activeNode = null;
+                        canvas.dispatchEvent(customEvent);
                     }
                 }
             }
@@ -206,19 +270,63 @@ class Swimlane {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
 
-    addNode({ label, x }) {
-        // rebase the x coordinate to the new origin
-        x += this.xorigin;
-        let measureText = this.ctx.measureText(label);
-        let mn = new MeshNode({ label, x, measureText });
-        this.nodes.push(mn);
-        return mn
+    /**
+     * 
+     * @param {string} label of the node to add
+     * @returns 
+     */
+    addNode(label) {
+        let x = (this.last_node_x += Swimlane.MIN_NODE_SPACING);
+        let mn = new MeshNode({
+            label,
+            x,
+            measureText: this.ctx.measureText(label)
+        });
+        this.nodes[label] = mn;
+        console.log(`added node`, mn);
+       
+        return mn;
     }
 
-    addMessage({ id, start, end }) {
-        let startep = new MessageEndpoint(start)
-        let endep = new MessageEndpoint(end)
-        this.msgs.push(new Message({ id, start: startep, end: endep }));
+    /**
+     * Add a message to the swimlane
+     * @param {Message} msg the message to add
+     */
+    addOrUpdateMessage(msg) {
+        // FIXME: there is no explict id on the message
+        let startnode;
+        let endnode;
+
+        // find the two nodes in the message. 
+        // Add them if they don't exist.
+        if(!(startnode = this.nodes[msg['Source Scope']])) {
+            startnode = this.addNode(msg['Source Scope']);
+        }
+        if(!(endnode = this.nodes[msg['Target Scope']])) {
+            endnode = this.addNode(msg['Target Scope']);
+        }
+
+        /**
+         * Startpoint end of the message (x=const vertical line)
+         * @type MessageBoundary
+         */
+        msg.start = new MessageBoundary({
+            node: startnode, 
+            time: msg.Timestamp
+        });
+
+        /**
+         * Endpoint end of the message (x=const vertical line)
+         * @type MessageBoundary
+         */
+        msg.end = new MessageBoundary({
+            node: endnode, 
+            time: msg.Timestamp + Message.DEFAULT_DURATION
+        });
+
+        this.msgs[Message.count++] = msg;
+        console.log(`added message`, msg);
+        this.draw();
     }
 
     // Draw a node at the given x coordinate. This is really just the text label
@@ -242,9 +350,6 @@ class Swimlane {
     drawMessage(msg) {
         let startPoint = new Point(msg.start.node.x, this.yorigin + msg.start.time / this.yscale);
         let endPoint = new Point(msg.end.node.x, this.yorigin + msg.end.time / this.yscale);
-
-        console.log(startPoint);
-        console.log(endPoint);
 
         var headlen = 10; // length of head in pixels
         var dx = endPoint.x - startPoint.x;
@@ -286,7 +391,7 @@ class Swimlane {
 
         this.ctx.strokeStyle = '#93a1a1';
         this.drawAxis();
-        for (let node of this.nodes) {
+        for (let node of Object.values(this.nodes)) {
             this.drawNode(node);
         }
 
@@ -307,5 +412,8 @@ class Swimlane {
         this.draw();
     }
 }
+
+/** How close nodes are allowed to be */
+Swimlane.MIN_NODE_SPACING = 50; 
 
 export { Swimlane, Point, MeshNode, Message };
