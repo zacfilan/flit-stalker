@@ -65,12 +65,12 @@ class Message {
         /** Source node identifier 
          * e.g. "HN-S [417]
         */
-        this["Source Scope"] = other["Source Scope"]; 
+        this["Source Scope"] = other["Source Scope"];
 
         /** Target node identifier
          * e.g. "SN-F [NID 24]",
          */
-        this["Target Scope"] = other["Target Scope"]; 
+        this["Target Scope"] = other["Target Scope"];
 
         /** The timestamp on the message, start time? */
         this.Timestamp = other.Timestamp;
@@ -79,7 +79,7 @@ class Message {
          * The message text <opcode address>
          * e.g. "access 0x20081151BC0"
          */
-        this.Message = other.Message; 
+        this.Message = other.Message;
 
         this.start = other.start;
         this.end = other.end;
@@ -92,8 +92,8 @@ class Message {
 Message.count = 0;
 
 /**
- * A message only comes in with one timestamp, i assume that is the start, so the end of the message is 
- * this much later
+ * A message only comes in with one timestamp, i assume that is the start, so
+ * the end of the message is this much later
  */
 Message.DEFAULT_DURATION = 50;
 
@@ -106,7 +106,7 @@ class Point {
      * @param {*} x 
      * @param {*} y 
      */
-    constructor(x,y) {
+    constructor(x, y) {
         this.x = x;
         this.y = y;
     }
@@ -144,8 +144,8 @@ class Swimlane {
 
         /** Position newly added nodes to the right */
         this.last_node_x = this.xorigin;
-        
-         this.yscale = 1;
+
+        this.yscale = 1;
 
         /** the node under the cursor */
         this.activeNode = null;
@@ -159,30 +159,23 @@ class Swimlane {
             let mouseX = event.clientX - rect.left;
             let mouseY = event.clientY - rect.top;
             console.log(`Mouse down at (${mouseX}, ${mouseY})`);
-        
-            // FIXME: speed up by using array?
-            for (let node of Object.values(that.nodes)) {
-                // Check if the mouse is within the bounds of the text
-                if (node.bb.x1 < mouseX && mouseX < node.bb.x1 + node.bb.width &&
-                    node.bb.y1 < mouseY && mouseY < node.bb.y1 + node.bb.height) {
-                    this.activeNode = node;
-                    this.mouseDown = true;
-                    let customEvent = new CustomEvent('canvas_node_mousedown', {
-                        detail: {
-                            node: node,
-                            mouseX: mouseX,
-                            mouseY: mouseY
-                        }
-                    });
-                    canvas.dispatchEvent(customEvent);
-                }
+
+            if(that.activeNode) {
+                that.mouseDown = true;
+                return
             }
         });
 
+        canvas.addEventListener('mouseup', function (event) {
+            that.mouseDown = false;
+        });
+
         canvas.addEventListener('mousemove', function (event) {
-            if(this.mouseDown) {
-                // we are moving a node, only the x-coordinate matters as I move it left or right
-                this.activeNode.x = event.clientX;
+            if (that.mouseDown) {
+                // we are moving a node, only the x-coordinate matters as I move
+                // it left or right
+                that.activeNode.x = event.clientX;
+                that.activeNode.calcBB();
                 that.draw();
                 return;
             }
@@ -193,15 +186,19 @@ class Swimlane {
             let mouseY = event.clientY - rect.top;
             //console.log(`Mouse down at (${mouseX}, ${mouseY})`);
 
-            // FIXME: use dedicated array for speed?
-            for (let node of Object.values(that.nodes)) {
+            let found = false;
+            // if the mouse over a node?
+            for (let node of Object.values(that.nodes)) {             // FIXME: use dedicated array for speed?
+
                 //console.log(`${node.label} (${node.bb.x1}, ${node.bb.y1}) - (${node.bb.x1 + node.bb.width}, ${node.bb.y1 + node.bb.height})`);
                 // Check if the mouse is within the bounds of the text
                 if (node.bb.x1 < mouseX && mouseX < node.bb.x1 + node.bb.width &&
                     node.bb.y1 < mouseY && mouseY < node.bb.y1 + node.bb.height) {
-
-                    if (this.activeNode !== node) {
-                        if (this.activeNode) {
+                    // mouse is over this node
+                    if (that.activeNode !== node) {
+                        // this node is now the active node
+                        if (that.activeNode) {
+                            // exit the old active node
                             let customEvent = new CustomEvent('canvas_node_exit', {
                                 detail: {
                                     node: node,
@@ -211,7 +208,7 @@ class Swimlane {
                             });
                             canvas.dispatchEvent(customEvent);
                         }
-                        this.activeNode = node;
+                        // enter the new active node
                         let customEvent = new CustomEvent('canvas_node_enter', {
                             detail: {
                                 node: node,
@@ -222,35 +219,42 @@ class Swimlane {
                         canvas.dispatchEvent(customEvent);
                     }
                     // else we are just moving within the active node
+
+                    found = true; // we found the active node
+                    break; // no need to look any further
                 }
-                else {
-                    // we are moving around outside of the nodes
-                    if (this.activeNode) {
-                        let customEvent = new CustomEvent('canvas_node_exit', {
-                            detail: {
-                                node: node,
-                                mouseX: mouseX,
-                                mouseY: mouseY
-                            }
-                        });
-                        this.activeNode = null;
-                        canvas.dispatchEvent(customEvent);
+            }
+
+            if (!found && that.activeNode) {
+                // we are moving around outside of any node, but one was still
+                // marked as active. need to clear that
+                let customEvent = new CustomEvent('canvas_node_exit', {
+                    detail: {
+                        node: that.activeNode,
+                        mouseX: mouseX,
+                        mouseY: mouseY
                     }
-                }
+                });
+                canvas.dispatchEvent(customEvent);
             }
         });
 
         canvas.addEventListener('canvas_node_enter', function (event) {
-            console.log(`enter node ${event.detail.node.label}`);
-            that.drawBorder(event.detail.node);
+            console.log(`active node`, event.detail.node);
+            that.activeNode = event.detail.node;
+            
+            that.draw();
         });
 
         canvas.addEventListener('canvas_node_exit', function (event) {
             console.log(`exit node ${event.detail.node.label}`);
-            that.clearBorder(event.detail.node);
+            if (that.activeNode == event.detail.node) {
+                that.activeNode = null;
+            }
+            that.draw();
         });
 
-        canvas.addEventListener('canvas_node_mousedown', function(event) {
+        canvas.addEventListener('canvas_node_mousedown', function (event) {
 
         });
 
@@ -258,11 +262,6 @@ class Swimlane {
 
     drawBorder(node) {
         this.ctx.strokeStyle = node.color;
-        this.ctx.strokeRect(node.bb.x1, node.bb.y1, node.bb.width, node.bb.height);
-    }
-
-    clearBorder(node) {
-        this.ctx.strokeStyle = '#00252e';
         this.ctx.strokeRect(node.bb.x1, node.bb.y1, node.bb.width, node.bb.height);
     }
 
@@ -284,7 +283,7 @@ class Swimlane {
         });
         this.nodes[label] = mn;
         console.log(`added node`, mn);
-       
+
         return mn;
     }
 
@@ -299,10 +298,10 @@ class Swimlane {
 
         // find the two nodes in the message. 
         // Add them if they don't exist.
-        if(!(startnode = this.nodes[msg['Source Scope']])) {
+        if (!(startnode = this.nodes[msg['Source Scope']])) {
             startnode = this.addNode(msg['Source Scope']);
         }
-        if(!(endnode = this.nodes[msg['Target Scope']])) {
+        if (!(endnode = this.nodes[msg['Target Scope']])) {
             endnode = this.addNode(msg['Target Scope']);
         }
 
@@ -311,7 +310,7 @@ class Swimlane {
          * @type MessageBoundary
          */
         msg.start = new MessageBoundary({
-            node: startnode, 
+            node: startnode,
             time: msg.Timestamp
         });
 
@@ -320,7 +319,7 @@ class Swimlane {
          * @type MessageBoundary
          */
         msg.end = new MessageBoundary({
-            node: endnode, 
+            node: endnode,
             time: msg.Timestamp + Message.DEFAULT_DURATION
         });
 
@@ -338,6 +337,10 @@ class Swimlane {
         this.ctx.strokeStyle = node.color;
         this.ctx.moveTo(node.x, this.yorigin + 1);
         this.ctx.fillText(node.label, node.x, this.yorigin - 17.25);
+
+        if (this.activeNode === node) {
+            this.drawBorder(node);
+        }
 
         // this is the swimlane below the text
         this.ctx.lineTo(node.x, this.ctx.canvas.height);
@@ -414,6 +417,6 @@ class Swimlane {
 }
 
 /** How close nodes are allowed to be */
-Swimlane.MIN_NODE_SPACING = 50; 
+Swimlane.MIN_NODE_SPACING = 50;
 
 export { Swimlane, Point, MeshNode, Message };
