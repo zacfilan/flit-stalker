@@ -365,6 +365,9 @@ class Swimlane {
         this.ctx.fillStyle = '#689500';
         this.ctx.stroke();
 
+        // draw the label of the message
+        this.ctx.fillText(msg.Message, (startPoint.x + endPoint.x) / 2, (startPoint.y + endPoint.y) / 2);
+
         // Draw the arrow head as a filled triangle
         this.ctx.beginPath();
         this.ctx.moveTo(endPoint.x, endPoint.y);
