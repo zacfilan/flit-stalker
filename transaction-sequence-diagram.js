@@ -113,9 +113,9 @@ class Point {
 }
 
 /**
- * This is the swimlane widget. view and model.
+ * This is the TransactionSequenceDiagram widget. view and model.
  */
-class Swimlane {
+class TransactionSequenceDiagram {
     constructor(startTime, endTime, canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -131,7 +131,7 @@ class Swimlane {
         this.timeDuration = endTime - startTime;
 
 
-        /** nodes are the named swimlanes */
+        /** nodes are the named TransactionSequenceDiagrams */
         this.nodes = {};
 
         this.node_order = []; // this is the current display order of the nodes
@@ -275,7 +275,7 @@ class Swimlane {
      * @returns 
      */
     addNode(label) {
-        let x = (this.last_node_x += Swimlane.MIN_NODE_SPACING);
+        let x = (this.last_node_x += TransactionSequenceDiagram.MIN_NODE_SPACING);
         let mn = new MeshNode({
             label,
             x,
@@ -288,7 +288,7 @@ class Swimlane {
     }
 
     /**
-     * Add a message to the swimlane
+     * Add a message to the TransactionSequenceDiagram
      * @param {Message} msg the message to add
      */
     addOrUpdateMessage(msg) {
@@ -342,14 +342,14 @@ class Swimlane {
             this.drawBorder(node);
         }
 
-        // this is the swimlane below the text
+        // this is the TransactionSequenceDiagram below the text
         this.ctx.lineTo(node.x, this.ctx.canvas.height);
         this.ctx.strokeStyle = '#1e6b65';
         this.ctx.fillStyle = '#1e6b65';
         this.ctx.stroke();
     }
 
-    // a message is drawn as an arrow between 2 node swimlanes
+    // a message is drawn as an arrow between 2 node TransactionSequenceDiagrams
     drawMessage(msg) {
         let startPoint = new Point(msg.start.node.x, this.yorigin + msg.start.time / this.yscale);
         let endPoint = new Point(msg.end.node.x, this.yorigin + msg.end.time / this.yscale);
@@ -420,6 +420,6 @@ class Swimlane {
 }
 
 /** How close nodes are allowed to be */
-Swimlane.MIN_NODE_SPACING = 50;
+TransactionSequenceDiagram.MIN_NODE_SPACING = 50;
 
-export { Swimlane, Point, MeshNode, Message };
+export { TransactionSequenceDiagram };

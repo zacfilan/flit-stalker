@@ -1,8 +1,7 @@
-import {Swimlane, MeshNode, Message} from './swimlane.js';
+import {TransactionSequenceDiagram} from './transaction-sequence-diagram.js';
 
-let sl = new Swimlane(0, 100, $("#swimlane")[0]);
-
-sl.draw();
+let xsd = new TransactionSequenceDiagram(0, 100, $("#swimlane")[0]);
+xsd.draw();
 
 $("#menu").kendoMenu({
     openOnClick: true
@@ -10,8 +9,8 @@ $("#menu").kendoMenu({
 
 $("#toolbar").kendoToolBar({
     items: [
-        { type: "button", text: "ZoomIn", click: x => sl.zoomIn() },
-        { type: "button", text: "ZoomOut", click: x => sl.zoomOut() },
+        { type: "button", text: "ZoomIn", click: x => xsd.zoomIn() },
+        { type: "button", text: "ZoomOut", click: x => xsd.zoomOut() },
         { type: "splitButton", text: "SplitButton", menuButtons: [{text: "Option 1"}, {text: "Option 2"}] }
     ]
 });
@@ -48,7 +47,7 @@ $.getJSON('messages.json', function(data) {
             var selectedRows = this.select();
             var dataItem = this.dataItem(selectedRows[0]);
             console.log(dataItem);
-            sl.addOrUpdateMessage(dataItem);
+            xsd.addOrUpdateMessage(dataItem);
         }
     });
 });
