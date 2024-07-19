@@ -352,6 +352,10 @@ class TransactionSequenceDiagram {
                 // we are moving a node, only the x-coordinate matters as I move
                 // it left or right
 
+                if(event.clientX < that.xorigin + that.activeNode.width / 2) {
+                    return; // don't move past the x-origin
+                }
+
                 that.activeNode.center.x = event.clientX;
                 that.activeNode._calcBB(); // if i only change one this is faster
                 
