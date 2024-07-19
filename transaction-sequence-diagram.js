@@ -173,16 +173,16 @@ class Message {
      * Draw the message on the given canvas
      * @param {Canvas} ctx the canvas context
      */
-    draw(ctx, yscale) {
+    draw(ctx, yscale, yorigin) {
         // arrow from here...
         let startPoint = new Point(
             this.start.swimlane.midX, 
-            this.start.time / yscale
+            yorigin + (this.start.time * yscale)
         );
         //... to here
         let endPoint = new Point(
             this.end.swimlane.midX, 
-            this.end.time / yscale
+            yorigin + (this.end.time * yscale)
         );
 
         var headlen = 10; // length of head in pixels
@@ -442,7 +442,7 @@ class TransactionSequenceDiagram {
          */
         msg.start = new MessageBoundary({
             swimlane: startSwimlane,
-            time: +msg.Timestamp + this.yorigin
+            time: +msg.Timestamp 
         });
 
         /**
@@ -451,13 +451,13 @@ class TransactionSequenceDiagram {
          */
         msg.end = new MessageBoundary({
             swimlane: endSwimlane,
-            time: +msg.Timestamp + this.yorigin + Message.DEFAULT_DURATION
+            time: +msg.Timestamp + Message.DEFAULT_DURATION
         });
 
         msg.label = new Label({
             text: msg.Message,
             _x1: (msg.start.swimlane.midX + msg.end.swimlane.midX) / 2,
-            _y1: (msg.start.time + msg.end.time) * this.yscale / 2,
+            _y1: (msg.start.time + msg.end.time) / 2,
             measureText: this.ctx.measureText(msg.Message)
         });
 
@@ -505,18 +505,22 @@ class TransactionSequenceDiagram {
         }
 
         for (let msg of this.msgs) {
-            msg.draw(this.ctx, this.yscale);
+            msg.draw(this.ctx, this.yscale, this.yorigin);
         }
 
     }
 
     // zooming in 
     zoomIn() {
+        // when i zoom in time differences appear larger
+        // i effectively stretch the y-axis
         this.yscale *= 1.1;
         this.draw();
     }
 
     zoomOut() {
+        // when i zoom out the large difference become smaller
+        // i effectively contract the y-axis
         this.yscale *= .9;
         this.draw();
     }
