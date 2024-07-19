@@ -1,43 +1,113 @@
+
 /**
- * Abstraction of the text name of the node at the top
- * of a swim lane
- * */
-class MeshNode {
-    /**
-     * Copy-like constructor
-     * @param {MeshNode} other config object
+ * Abstraction of a html-like nodes view area in TransactionSequenceDiagram
+ */
+class BoundingBox {
+    _x1 = 0;
+    _y1 = 0;
+
+    _x2 = 0;
+    _y2 = 0;
+
+    _width = 0;
+    _height = 0;
+
+    /** padding */
+    _padding = 5;
+
+    /** Copy-like constructor
+     * @param {BoundingBox} other config object
      */
     constructor(other) {
-        this.label = other.label;
-        // this 
-        this.x = other.x;
-
-        // will be calculated once the text is drawn
-        this.measureText = other.measureText;
-
-        // calc the bounding box
-        this.textWidth = this.measureText.width;
-        this.textHeight = 12;//parseInt(this.ctx.font, 10); // assuming the font size is the first value in the font string
-        let padding = 5; // padding around the text
-        this.bb = {
-            width: this.textWidth + 2 * padding,
-            height: this.textHeight + 2 * padding,
-
-            // should be constant, until I allow stacking
-            y1: 40 - 10 * 2 - 2 * padding
-        };
-        this.calcBB();
-        this.color = '#1e6b65';
+        this._x1 = other._x1;
+        this._y1 = other._y1;
+        this._x2 = other._x2;
+        this._y2 = other._y2;
     }
 
-    // calculate x1 of the bounding box
-    calcBB() {
-        this.bb.x1 = this.x - this.textWidth / 2 - 2;
+    /**
+     * Draw a border around the bounding box
+     */
+    drawBorder(ctx) {
+        ctx.strokeRect(this._x1, this._y1, this._width, this._height);
+    }
+
+}
+
+/**
+ * Text in a BoundingBox 
+ * */
+class Label extends BoundingBox {
+    /**
+     * Copy-like constructor
+     * @param {Label} other config object
+     */
+    constructor(other) {
+        super(other);
+
+        /** The text of the label */
+        this.text = other.text;
+        
+        // will be calculated once the text is drawn
+        this.measureText = other.measureText;
+        
+        this._width  = this.measureText.width + (2 * this._padding);
+        this._height = 12 + (2 * this._padding); //FIXME: height can be calculated in another way
+        this._x2 = this._x1 + this._width;
+        this._y2 = this._y1 + this._height;
+
+        this.midX = (this._x1 + this._x2) / 2;
+        this.midY = (this._y1 + this._y2 + 10) / 2;  
+        Label.instances.push(this);
+    }
+
+    setMidX(midX) {
+        this.midX = midX;
+        this._x1 = midX - this._width / 2;
+        this._x2 = midX + this._width / 2;
+    }
+
+    /**
+     * Draw the text and optionally a border
+     */
+    draw(ctx) {
+        // the y-value is the bottem of the text
+        // to center this we need to add 1/2 the text height to the midine
+        ctx.fillText(this.text, this.midX, this.midY);
+    }
+}
+/**
+ * The instances of the Label class created
+ * @type {Array.<Label>}
+ */
+Label.instances = [];
+
+/**
+ * A swimlane is a vertical line and a label on top
+ */
+class Swimlane extends Label {
+    /** The x-location of the vertical line */
+
+    constructor(other) {
+        super(other);
+    }
+
+    /** Draw the complete swimlane on the canvas */
+    draw(ctx) {
+        // draw the Label
+        super.draw(ctx);
+        
+        // draw the verical line
+        ctx.beginPath();
+        ctx.moveTo(this.midX, this._y2);
+        ctx.lineTo(this.midX, ctx.canvas.height);
+        ctx.stroke();
     }
 }
 
 /**
  * Represents the start point or end point of a message.
+ * This is a swimlane and a time.
  */
 class MessageBoundary {
     /**
@@ -45,8 +115,10 @@ class MessageBoundary {
      * @param {MessageBoundary} other config object
      */
     constructor(other) {
-        /** The node id, used to lookup the node */
-        this.node = other.node;
+        /** The swimlane of this message boundary
+         * @type Swimlane
+        */
+        this.swimlane = other.swimlane;
 
         /** the time */
         this.time = other.time;
@@ -81,8 +153,59 @@ class Message {
          */
         this.Message = other.Message;
 
+        /** The starting swimlane of the message 
+         * @type MessageBoundary
+        */
         this.start = other.start;
+
+        /** The ending swimlane of the message 
+         * @type MessageBoundary
+        */
         this.end = other.end;
+
+        /** The label of the message 
+         * @type Label
+        */
+        this.label = other.label;
+    }
+
+    /**
+     * Draw the message on the given canvas
+     * @param {Canvas} ctx the canvas context
+     */
+    draw(ctx, yscale) {
+        // arrow from here...
+        let startPoint = new Point(
+            this.start.swimlane.midX, 
+            this.start.time / yscale
+        );
+        //... to here
+        let endPoint = new Point(
+            this.end.swimlane.midX, 
+            this.end.time / yscale
+        );
+
+        var headlen = 10; // length of head in pixels
+        var dx = endPoint.x - startPoint.x;
+        var dy = endPoint.y - startPoint.y;
+        var angle = Math.atan2(dy, dx);
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x, startPoint.y);
+        ctx.lineTo(endPoint.x, endPoint.y);
+        ctx.stroke();
+
+        // draw the label of the message
+        this.label.setMidX( (startPoint.x + endPoint.x) / 2 );
+        this.label._y1 = (startPoint.y + endPoint.y) / 2;
+        this.label.draw(ctx);
+
+        // Draw the arrow head as a filled triangle
+        ctx.beginPath();
+        ctx.moveTo(endPoint.x, endPoint.y);
+        ctx.lineTo(endPoint.x - headlen * Math.cos(angle - Math.PI / 6), endPoint.y - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(endPoint.x - headlen * Math.cos(angle + Math.PI / 6), endPoint.y - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath(); // Close the path
+        ctx.fill(); // Fill the path
     }
 }
 
@@ -131,23 +254,30 @@ class TransactionSequenceDiagram {
         this.timeDuration = endTime - startTime;
 
 
-        /** nodes are the named TransactionSequenceDiagrams */
-        this.nodes = {};
+        /** nodes are the named TransactionSequenceDiagrams 
+         * @type {Object.<string, Swimlane>}
+        */
+        this.swimlanes = {};
 
         this.node_order = []; // this is the current display order of the nodes
 
-        /** messages are the arrows between the nodes */
+        /** messages are the arrows between the nodes 
+         * @type {Array.<Message>}
+        */
         this.msgs = [];
 
         this.xorigin = 118;
-        this.yorigin = 40;
+        this.yorigin = 50;
 
         /** Position newly added nodes to the right */
-        this.last_node_x = this.xorigin;
+        this.lastSwimlaneX = this.xorigin;
 
         this.yscale = 1;
 
-        /** the node under the cursor */
+        /** the active swimlane. under the cursor, and or being moved currently */
+        /**
+         * @type {Swimlane}
+         */
         this.activeNode = null;
 
         let that = this;
@@ -174,8 +304,9 @@ class TransactionSequenceDiagram {
             if (that.mouseDown) {
                 // we are moving a node, only the x-coordinate matters as I move
                 // it left or right
-                that.activeNode.x = event.clientX;
-                that.activeNode.calcBB();
+
+                that.activeNode.setMidX(event.clientX);
+                
                 that.draw();
                 return;
             }
@@ -187,19 +318,30 @@ class TransactionSequenceDiagram {
             //console.log(`Mouse down at (${mouseX}, ${mouseY})`);
 
             let found = false;
-            // if the mouse over a node?
-            for (let node of Object.values(that.nodes)) {             // FIXME: use dedicated array for speed?
+            // is the mouse over a label 
+            for (let node of Label.instances) {             // FIXME: use dedicated array for speed?
 
                 //console.log(`${node.label} (${node.bb.x1}, ${node.bb.y1}) - (${node.bb.x1 + node.bb.width}, ${node.bb.y1 + node.bb.height})`);
                 // Check if the mouse is within the bounds of the text
-                if (node.bb.x1 < mouseX && mouseX < node.bb.x1 + node.bb.width &&
-                    node.bb.y1 < mouseY && mouseY < node.bb.y1 + node.bb.height) {
-                    // mouse is over this node
-                    if (that.activeNode !== node) {
-                        // this node is now the active node
-                        if (that.activeNode) {
-                            // exit the old active node
-                            let customEvent = new CustomEvent('canvas_node_exit', {
+                if (node._x1 < mouseX && mouseX < node._x2 &&
+                    node._y1 < mouseY && mouseY < node._y2) {
+                    if(node instanceof Swimlane) {
+                        // mouse is over this node
+                        if (that.activeNode !== node) {
+                            // this node is now the active node
+                            if (that.activeNode) {
+                                // exit the old active node
+                                let customEvent = new CustomEvent('canvas_node_exit', {
+                                    detail: {
+                                        node: node,
+                                        mouseX: mouseX,
+                                        mouseY: mouseY
+                                    }
+                                });
+                                canvas.dispatchEvent(customEvent);
+                            }
+                            // enter the new active node
+                            let customEvent = new CustomEvent('canvas_node_enter', {
                                 detail: {
                                     node: node,
                                     mouseX: mouseX,
@@ -208,20 +350,15 @@ class TransactionSequenceDiagram {
                             });
                             canvas.dispatchEvent(customEvent);
                         }
-                        // enter the new active node
-                        let customEvent = new CustomEvent('canvas_node_enter', {
-                            detail: {
-                                node: node,
-                                mouseX: mouseX,
-                                mouseY: mouseY
-                            }
-                        });
-                        canvas.dispatchEvent(customEvent);
-                    }
-                    // else we are just moving within the active node
+                        // else we are just moving within the active node
 
-                    found = true; // we found the active node
-                    break; // no need to look any further
+                        found = true; // we found the active node
+                        break; // no need to look any further
+                    }
+                    else {
+                        // must be the label in the message
+                        console.log("message label");
+                    }
                 }
             }
 
@@ -260,31 +397,30 @@ class TransactionSequenceDiagram {
 
     }
 
-    drawBorder(node) {
-        this.ctx.strokeStyle = node.color;
-        this.ctx.strokeRect(node.bb.x1, node.bb.y1, node.bb.width, node.bb.height);
-    }
-
     clear() {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
 
     /**
-     * 
      * @param {string} label of the node to add
      * @returns 
      */
-    addNode(label) {
-        let x = (this.last_node_x += TransactionSequenceDiagram.MIN_NODE_SPACING);
-        let mn = new MeshNode({
-            label,
-            x,
-            measureText: this.ctx.measureText(label)
-        });
-        this.nodes[label] = mn;
-        console.log(`added node`, mn);
+    addSwimlane(labelText) {
+        let x = (this.lastSwimlaneX += TransactionSequenceDiagram.MIN_NODE_SPACING);
 
-        return mn;
+        let mt = this.ctx.measureText(labelText);
+
+        let swimlane = new Swimlane({
+            text: labelText,
+            _x1: x,
+            _y1: this.yorigin - 12 - 5 - 5 - 1 -1,
+            measureText: mt
+        });
+
+        this.swimlanes[labelText] = swimlane;
+        console.log(`added swimlane`, swimlane);
+
+        return swimlane;
     }
 
     /**
@@ -293,16 +429,16 @@ class TransactionSequenceDiagram {
      */
     addOrUpdateMessage(msg) {
         // FIXME: there is no explict id on the message
-        let startnode;
-        let endnode;
+        let startSwimlane;
+        let endSwimlane;
 
         // find the two nodes in the message. 
         // Add them if they don't exist.
-        if (!(startnode = this.nodes[msg['Source Scope']])) {
-            startnode = this.addNode(msg['Source Scope']);
+        if (!(startSwimlane = this.swimlanes[msg['Source Scope']])) {
+            startSwimlane = this.addSwimlane(msg['Source Scope']);
         }
-        if (!(endnode = this.nodes[msg['Target Scope']])) {
-            endnode = this.addNode(msg['Target Scope']);
+        if (!(endSwimlane = this.swimlanes[msg['Target Scope']])) {
+            endSwimlane = this.addSwimlane(msg['Target Scope']);
         }
 
         /**
@@ -310,8 +446,8 @@ class TransactionSequenceDiagram {
          * @type MessageBoundary
          */
         msg.start = new MessageBoundary({
-            node: startnode,
-            time: msg.Timestamp
+            swimlane: startSwimlane,
+            time: +msg.Timestamp + this.yorigin
         });
 
         /**
@@ -319,67 +455,27 @@ class TransactionSequenceDiagram {
          * @type MessageBoundary
          */
         msg.end = new MessageBoundary({
-            node: endnode,
-            time: msg.Timestamp + Message.DEFAULT_DURATION
+            swimlane: endSwimlane,
+            time: +msg.Timestamp + this.yorigin + Message.DEFAULT_DURATION
         });
 
-        this.msgs[Message.count++] = msg;
-        console.log(`added message`, msg);
+        msg.label = new Label({
+            text: msg.Message,
+            _x1: (msg.start.swimlane.midX + msg.end.swimlane.midX) / 2,
+            _y1: (msg.start.time + msg.end.time) * this.yscale / 2,
+            measureText: this.ctx.measureText(msg.Message)
+        });
+
+        let message = new Message(msg);
+
+        this.msgs[Message.count++] = message;
+        console.log(`added message`, message);
         this.draw();
-    }
-
-    // Draw a node at the given x coordinate. This is really just the text label
-    // of the node
-    drawNode(node) {
-        this.ctx.beginPath();
-
-        // this is the text
-        this.ctx.strokeStyle = node.color;
-        this.ctx.moveTo(node.x, this.yorigin + 1);
-        this.ctx.fillText(node.label, node.x, this.yorigin - 17.25);
-
-        if (this.activeNode === node) {
-            this.drawBorder(node);
-        }
-
-        // this is the TransactionSequenceDiagram below the text
-        this.ctx.lineTo(node.x, this.ctx.canvas.height);
-        this.ctx.strokeStyle = '#1e6b65';
-        this.ctx.fillStyle = '#1e6b65';
-        this.ctx.stroke();
-    }
-
-    // a message is drawn as an arrow between 2 node TransactionSequenceDiagrams
-    drawMessage(msg) {
-        let startPoint = new Point(msg.start.node.x, this.yorigin + msg.start.time / this.yscale);
-        let endPoint = new Point(msg.end.node.x, this.yorigin + msg.end.time / this.yscale);
-
-        var headlen = 10; // length of head in pixels
-        var dx = endPoint.x - startPoint.x;
-        var dy = endPoint.y - startPoint.y;
-        var angle = Math.atan2(dy, dx);
-        this.ctx.beginPath();
-        this.ctx.moveTo(startPoint.x, startPoint.y);
-        this.ctx.lineTo(endPoint.x, endPoint.y);
-        this.ctx.strokeStyle = '#689500';
-        this.ctx.fillStyle = '#689500';
-        this.ctx.stroke();
-
-        // draw the label of the message
-        this.ctx.fillText(msg.Message, (startPoint.x + endPoint.x) / 2, (startPoint.y + endPoint.y) / 2);
-
-        // Draw the arrow head as a filled triangle
-        this.ctx.beginPath();
-        this.ctx.moveTo(endPoint.x, endPoint.y);
-        this.ctx.lineTo(endPoint.x - headlen * Math.cos(angle - Math.PI / 6), endPoint.y - headlen * Math.sin(angle - Math.PI / 6));
-        this.ctx.lineTo(endPoint.x - headlen * Math.cos(angle + Math.PI / 6), endPoint.y - headlen * Math.sin(angle + Math.PI / 6));
-        this.ctx.closePath(); // Close the path
-        this.ctx.fill(); // Fill the path
     }
 
     // this draws the axis' of the grid
     drawAxis() {
-
+        this.ctx.strokeStyle = TransactionSequenceDiagram.axisColor;
         this.ctx.beginPath();
         this.ctx.moveTo(0, this.yorigin);
         this.ctx.lineTo(this.ctx.canvas.width, this.yorigin);
@@ -391,18 +487,30 @@ class TransactionSequenceDiagram {
         this.ctx.stroke();
     }
 
-    // this redraws the whole canvas, us sparingly
+    // this redraws the whole canvas
     draw() {
         this.clear();
-
-        this.ctx.strokeStyle = '#93a1a1';
         this.drawAxis();
-        for (let node of Object.values(this.nodes)) {
-            this.drawNode(node);
+
+        if(this.activeNode) {
+            this.ctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
+            this.ctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
+            this.activeNode.draw(this.ctx);
+            this.activeNode.drawBorder(this.ctx);
+        }
+
+        this.ctx.strokeStyle = TransactionSequenceDiagram.color;
+        this.ctx.fillStyle = TransactionSequenceDiagram.color;
+
+        for (let swimlane of Object.values(this.swimlanes)) {
+            if(swimlane === this.activeNode) {
+                continue;
+            }
+            swimlane.draw(this.ctx);
         }
 
         for (let msg of this.msgs) {
-            this.drawMessage(msg);
+            msg.draw(this.ctx, this.yscale);
         }
 
     }
@@ -420,6 +528,17 @@ class TransactionSequenceDiagram {
 }
 
 /** How close nodes are allowed to be */
-TransactionSequenceDiagram.MIN_NODE_SPACING = 50;
+TransactionSequenceDiagram.MIN_NODE_SPACING = 100;
+
+/** default text color */
+TransactionSequenceDiagram.color = '#e4e4e4';
+
+/** color of the axis */
+TransactionSequenceDiagram.axisColor = '#93a1a1';
+
+/** the default background color of the sequence diagram */
+TransactionSequenceDiagram.backgroundColor = '#00252e';
+
+TransactionSequenceDiagram.activeNodeColor = '#689500';
 
 export { TransactionSequenceDiagram };
