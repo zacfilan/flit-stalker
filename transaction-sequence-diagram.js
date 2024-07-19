@@ -61,10 +61,19 @@ class Label extends BoundingBox {
         Label.instances.push(this);
     }
 
+    // FIXME: the x should always be the middle of the text
+    // the bounding box should be calculated from that once.
+    // then that is used in the boundary check
     setMidX(midX) {
         this.midX = midX;
         this._x1 = midX - this._width / 2;
         this._x2 = midX + this._width / 2;
+    }
+
+    // the y-value is the bottom of the text
+    // to center this we need to add 1/2 the text height to the midine
+    setMidY() { 
+        this.midY = (this._y1 + this._y2 + 10) / 2;  
     }
 
     /**
@@ -197,6 +206,7 @@ class Message {
         // draw the label of the message
         this.label.setMidX( (startPoint.x + endPoint.x) / 2 );
         this.label._y1 = (startPoint.y + endPoint.y) / 2;
+        this.label.setMidY();
         this.label.draw(ctx);
 
         // Draw the arrow head as a filled triangle
