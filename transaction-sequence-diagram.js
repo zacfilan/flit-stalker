@@ -3,26 +3,83 @@
  * Abstraction of a html-like nodes view area in TransactionSequenceDiagram
  */
 class BoundingBox {
+    /** The center of the bounding box
+     * @type Point
+     */
+    _center;
+
+    /** private/internal x1 value */
     _x1 = 0;
+    /** private/internal y1 value */
     _y1 = 0;
-
+    /** private/internal x2 value */
     _x2 = 0;
+    /** private/internal y2 value */
     _y2 = 0;
-
+    /** private/internal width value */
     _width = 0;
+    /*  private/internal height value */
     _height = 0;
+    /** private/internal padding */
+    _padding = 0;
+    /** private/internal midpoint x */
+    _center = null;
+    
+    /** (Re-)calcuate the upper-left and lower-right points based on the center,
+     * width and height.
+    */
+    _calcBB() {
+        this._x1 = this._center.x - this._width / 2;
+        this._y1 = this._center.y - this._height / 2;
+    
+        this._x2 = this._x1 + this._width;
+        this._y2 = this._y1 + this._height;
+    }
 
-    /** padding */
-    _padding = 5;
+    /** this is the horizontal center of the bounding box */
+    set center(to) {
+        this._center = to;
+        this._calcBB();
+    }
+
+    get center() {
+        return this._center;    
+    }
+
+    /** Public width */
+    get width() {
+        return this._width;
+    }
+
+    /**
+     * Public width -
+     * altering width doesn't change the center */ 
+    set width(value) {
+        this._width = value;
+        this._calcBB();
+    }
+
+    /** Public height */
+    get height() {
+        return this._height;
+    }
+    
+    /** 
+     * Public height - 
+     * altering height doesn't change the center */
+    set height(value) {
+        this._height = value;
+        this._calcBB();
+    }
 
     /** Copy-like constructor
      * @param {BoundingBox} other config object
      */
     constructor(other) {
-        this._x1 = other._x1;
-        this._y1 = other._y1;
-        this._x2 = other._x2;
-        this._y2 = other._y2;
+        this._padding = other._padding ?? 5;
+        this._width = other.width;
+        this._height = other.height;
+        this.center = new Point(other.center.x, other.center.y);
     }
 
     /**
@@ -47,33 +104,7 @@ class Label extends BoundingBox {
 
         /** The text of the label */
         this.text = other.text;
-        
-        // will be calculated once the text is drawn
-        this.measureText = other.measureText;
-        
-        this._width  = this.measureText.width + (2 * this._padding);
-        this._height = 12 + (2 * this._padding); //FIXME: height can be calculated in another way
-        this._x2 = this._x1 + this._width;
-        this._y2 = this._y1 + this._height;
-
-        this.midX = (this._x1 + this._x2) / 2;
-        this.midY = (this._y1 + this._y2 + 10) / 2;  
         Label.instances.push(this);
-    }
-
-    // FIXME: the x should always be the middle of the text
-    // the bounding box should be calculated from that once.
-    // then that is used in the boundary check
-    setMidX(midX) {
-        this.midX = midX;
-        this._x1 = midX - this._width / 2;
-        this._x2 = midX + this._width / 2;
-    }
-
-    // the y-value is the bottom of the text
-    // to center this we need to add 1/2 the text height to the midine
-    setMidY() { 
-        this.midY = (this._y1 + this._y2 + 10) / 2;  
     }
 
     /**
@@ -82,7 +113,7 @@ class Label extends BoundingBox {
     draw(ctx) {
         // the y-value is the bottem of the text
         // to center this we need to add 1/2 the text height to the midine
-        ctx.fillText(this.text, this.midX, this.midY);
+        ctx.fillText(this.text, this.center.x, this.center.y);
     }
 }
 /**
@@ -108,8 +139,8 @@ class Swimlane extends Label {
         
         // draw the verical line
         ctx.beginPath();
-        ctx.moveTo(this.midX, this._y2);
-        ctx.lineTo(this.midX, ctx.canvas.height);
+        ctx.moveTo(this.center.x, this._y2);
+        ctx.lineTo(this.center.x, ctx.canvas.height);
         ctx.stroke();
     }
 }
@@ -183,14 +214,14 @@ class Message {
      * @param {Canvas} ctx the canvas context
      */
     draw(ctx, yscale, yorigin) {
-        // arrow from here...
+        // arrow from here..
         let startPoint = new Point(
-            this.start.swimlane.midX, 
+            this.start.swimlane.center.x, 
             yorigin + (this.start.time * yscale)
         );
-        //... to here
+        //.. to here
         let endPoint = new Point(
-            this.end.swimlane.midX, 
+            this.end.swimlane.center.x, 
             yorigin + (this.end.time * yscale)
         );
 
@@ -204,10 +235,11 @@ class Message {
         ctx.stroke();
 
         // draw the label of the message
-        this.label.setMidX( (startPoint.x + endPoint.x) / 2 );
-        this.label._y1 = (startPoint.y + endPoint.y) / 2;
-        this.label.setMidY();
+        this.label.center = new Point( 
+            (startPoint.x + endPoint.x) / 2,
+            (startPoint.y + endPoint.y) / 2);
         this.label.draw(ctx);
+        //this.label.drawBorder(ctx);
 
         // Draw the arrow head as a filled triangle
         ctx.beginPath();
@@ -269,6 +301,11 @@ class TransactionSequenceDiagram {
         */
         this.swimlanes = {};
 
+        /** the last swimlane added 
+         * @type {Swimlane}
+        */
+        this.lastSwimlaneAdded = null;
+
         this.node_order = []; // this is the current display order of the nodes
 
         /** messages are the arrows between the nodes 
@@ -315,7 +352,8 @@ class TransactionSequenceDiagram {
                 // we are moving a node, only the x-coordinate matters as I move
                 // it left or right
 
-                that.activeNode.setMidX(event.clientX);
+                that.activeNode.center.x = event.clientX;
+                that.activeNode._calcBB(); // if i only change one this is faster
                 
                 that.draw();
                 return;
@@ -411,18 +449,26 @@ class TransactionSequenceDiagram {
      * @returns 
      */
     addSwimlane(labelText) {
-        let x = (this.lastSwimlaneX += TransactionSequenceDiagram.MIN_NODE_SPACING);
+        // FIXME: is a swimlane moves then if it passes last it becomes last 
 
+        // we want the center of the next swimlane to be
+        let x = this.lastSwimlaneAdded?._x2 ?? this.xorigin;
+        x += TransactionSequenceDiagram.MIN_NODE_SPACING;
+        
         let mt = this.ctx.measureText(labelText);
 
         let swimlane = new Swimlane({
             text: labelText,
-            _x1: x,
-            _y1: this.yorigin - 12 - 5 - 5 - 1 -1,
-            measureText: mt
+            center: new Point(x, this.yorigin - 12 - 5 - 5 - 1 -1),
+            width: this.ctx.measureText(labelText).width,
+            height: 12 + (2 * 5), // FIXME: hack
         });
 
         this.swimlanes[labelText] = swimlane;
+        
+        // record the last one inserted
+        this.lastSwimlaneAdded = swimlane;
+
         console.log(`added swimlane`, swimlane);
 
         return swimlane;
@@ -466,15 +512,18 @@ class TransactionSequenceDiagram {
 
         msg.label = new Label({
             text: msg.Message,
-            _x1: (msg.start.swimlane.midX + msg.end.swimlane.midX) / 2,
-            _y1: (msg.start.time + msg.end.time) / 2,
-            measureText: this.ctx.measureText(msg.Message)
+            center: new Point(
+                (msg.start.swimlane.center.x + msg.end.swimlane.center.x) / 2,
+                (msg.start.time + msg.end.time) / 2),
+            width: this.ctx.measureText(msg.Message).width,
+            height: 12 + (2 * 5), // FIXME: hack
         });
 
         let message = new Message(msg);
 
         this.msgs[Message.count++] = message;
         console.log(`added message`, message);
+
         this.draw();
     }
 
