@@ -290,7 +290,7 @@ class TransactionSequenceDiagram {
             let mouseY = event.clientY - rect.top;
             console.log(`Mouse down at (${mouseX}, ${mouseY})`);
 
-            if(that.activeNode) {
+            if(that.activeNode instanceof Swimlane) {
                 that.mouseDown = true;
                 return
             }
@@ -325,23 +325,13 @@ class TransactionSequenceDiagram {
                 // Check if the mouse is within the bounds of the text
                 if (node._x1 < mouseX && mouseX < node._x2 &&
                     node._y1 < mouseY && mouseY < node._y2) {
-                    if(node instanceof Swimlane) {
-                        // mouse is over this node
-                        if (that.activeNode !== node) {
-                            // this node is now the active node
-                            if (that.activeNode) {
-                                // exit the old active node
-                                let customEvent = new CustomEvent('canvas_node_exit', {
-                                    detail: {
-                                        node: node,
-                                        mouseX: mouseX,
-                                        mouseY: mouseY
-                                    }
-                                });
-                                canvas.dispatchEvent(customEvent);
-                            }
-                            // enter the new active node
-                            let customEvent = new CustomEvent('canvas_node_enter', {
+
+                    // mouse is over this node
+                    if (that.activeNode !== node) {
+                        // this node is now the active node
+                        if (that.activeNode) {
+                            // exit the old active node
+                            let customEvent = new CustomEvent('canvas_node_exit', {
                                 detail: {
                                     node: node,
                                     mouseX: mouseX,
@@ -350,15 +340,20 @@ class TransactionSequenceDiagram {
                             });
                             canvas.dispatchEvent(customEvent);
                         }
-                        // else we are just moving within the active node
+                        // enter the new active node
+                        let customEvent = new CustomEvent('canvas_node_enter', {
+                            detail: {
+                                node: node,
+                                mouseX: mouseX,
+                                mouseY: mouseY
+                            }
+                        });
+                        canvas.dispatchEvent(customEvent);
+                    }
+                    // else we are just moving within the active node
 
-                        found = true; // we found the active node
-                        break; // no need to look any further
-                    }
-                    else {
-                        // must be the label in the message
-                        console.log("message label");
-                    }
+                    found = true; // we found the active node
+                    break; // no need to look any further
                 }
             }
 
