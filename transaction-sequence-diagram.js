@@ -146,26 +146,6 @@ class Swimlane extends Label {
 }
 
 /**
- * Represents the start point or end point of a message.
- * This is a swimlane and a time.
- */
-class MessageBoundary {
-    /**
-     * @brief Copy-like constructor
-     * @param {MessageBoundary} other config object
-     */
-    constructor(other) {
-        /** The swimlane of this message boundary
-         * @type Swimlane
-        */
-        this.swimlane = other.swimlane;
-
-        /** the event time rebased a percentage of duration */
-        this.timePercent = other.timePercent;
-    }
-}
-
-/**
  * @brief Represents a message between two nodes
  *  */
 class Message {
@@ -187,6 +167,9 @@ class Message {
         /** The timestamp on the message, start time? */
         this.Timestamp = other.Timestamp;
 
+        /** the timestamp as a nnumber */
+        this.time = +this.Timestamp.replace(/,/g, '');
+
         /**
          * The message text <opcode address>
          * e.g. "access 0x20081151BC0"
@@ -194,12 +177,12 @@ class Message {
         this.Message = other.Message;
 
         /** The starting swimlane of the message 
-         * @type MessageBoundary
+         * @type Swimlane
         */
         this.start = other.start;
 
         /** The ending swimlane of the message 
-         * @type MessageBoundary
+         * @type Swimlane
         */
         this.end = other.end;
 
@@ -213,18 +196,7 @@ class Message {
      * Draw the message on the given canvas
      * @param {Canvas} ctx the canvas context
      */
-    draw(ctx, yscale, yorigin, canvasHeight) {
-        // arrow from here..
-        let startPoint = new Point(
-            this.start.swimlane.center.x, 
-            yorigin + (this.start.timePercent * canvasHeight) * yscale
-        );
-        //.. to here
-        let endPoint = new Point(
-            this.end.swimlane.center.x, 
-            yorigin + (this.end.timePercent * canvasHeight) * yscale
-        );
-
+    draw(ctx, startPoint, endPoint) {
         var headlen = 10; // length of head in pixels
         var dx = endPoint.x - startPoint.x;
         var dy = endPoint.y - startPoint.y;
@@ -242,7 +214,6 @@ class Message {
 
         // draw the timestamp 
         ctx.fillText(this.Timestamp, 50, startPoint.y);
-
         
         // Draw the arrow head as a filled triangle
         ctx.beginPath();
@@ -284,22 +255,37 @@ class Point {
  * This is the TransactionSequenceDiagram widget. view and model.
  */
 class TransactionSequenceDiagram {
-    constructor(startTime, endTime, canvas) {
+    constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
         this.ctx.fillStyle = 'white';
         this.ctx.strokeStyle = 'white';
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 1;
         this.ctx.font = '10px Arial';
         this.ctx.textAlign = 'center';
 
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.timeDuration = endTime - startTime;
+        /** the start sim time of the display window.
+         * theis depends on the messages we want to display int he window
+         */
+        this.startTime = Number.MAX_SAFE_INTEGER;
+        
+        /** then end sim time of the display window.
+         * this depends on the messages we want to display in the window
+         */
+        this.endTime = Number.MIN_SAFE_INTEGER;
 
+        /** the simtime duration that the display window covers */
+        this.timeDuration = this.endTime - this.startTime;
+
+        /** the x-origin for the transactions */
         this.xorigin = 118;
+
+        /** the y-origin for the transatiocns */
         this.yorigin = 50;
+
+        /** The last message added or selected */
+        this.lastMessageSelected = null;
 
         // the width of the cannvas was set in the HTML as 1920
         // the height of the canvas is set in the HTML as 1080
@@ -329,9 +315,8 @@ class TransactionSequenceDiagram {
         */
         this.msgs = [];
 
-
-
-        /** Position newly added nodes to the right */
+        /** Position newly added nodes to the right, so remember the x 
+         * coordinate of the last swimlane added */
         this.lastSwimlaneX = this.xorigin;
 
         this.yscale = 1;
@@ -499,47 +484,37 @@ class TransactionSequenceDiagram {
      */
     addOrUpdateMessage(msg) {
         // FIXME: there is no explict id on the message
-        let startSwimlane;
-        let endSwimlane;
 
         // find the two nodes in the message. 
         // Add them if they don't exist.
-        if (!(startSwimlane = this.swimlanes[msg['Source Scope']])) {
-            startSwimlane = this.addSwimlane(msg['Source Scope']);
+        if (!(msg.start = this.swimlanes[msg['Source Scope']])) {
+            msg.start = this.addSwimlane(msg['Source Scope']);
         }
-        if (!(endSwimlane = this.swimlanes[msg['Target Scope']])) {
-            endSwimlane = this.addSwimlane(msg['Target Scope']);
+        if (!(msg.end = this.swimlanes[msg['Target Scope']])) {
+            msg.end = this.addSwimlane(msg['Target Scope']);
         }
 
-        /**
-         * Startpoint end of the message (x=const vertical line)
-         * @type MessageBoundary
-         */
-        msg.start = new MessageBoundary({
-            swimlane: startSwimlane,
-            timePercent: (+msg.Timestamp.replace(/,/g, '') - this.startTime) / this.timeDuration
-        });
-
-        /**
-         * Endpoint end of the message (x=const vertical line)
-         * @type MessageBoundary
-         */
-        msg.end = new MessageBoundary({
-            swimlane: endSwimlane,
-            timePercent: (+msg.Timestamp.replace(/,/g, '') + Message.DEFAULT_DURATION - this.startTime) / this.timeDuration
-        });
+        // update the time range of the diagram
+        msg.time = +msg.Timestamp.replace(/,/g, '');
+        if(msg.time < this.startTime) {
+            this.startTime = msg.time;
+        }
+        if(this.endTime < msg.time) {
+            this.endTime = msg.time;
+        }
+        this.timeDuration = (this.endTime - this.startTime) || 100; // FIXME: edge case
 
         msg.label = new Label({
             text: msg.Message,
             center: new Point(
-                (msg.start.swimlane.center.x + msg.end.swimlane.center.x) / 2,
-                (msg.start.time + msg.end.time) / 2),
+                (msg.start.center.x + msg.end.center.x) / 2,
+                (msg.time + msg.time + Message.DEFAULT_DURATION) / 2), // FIXME: duration is a hack!!
             width: this.ctx.measureText(msg.Message).width,
             height: 12 + (2 * 5), // FIXME: hack
         });
 
         let message = new Message(msg);
-
+        this.lastMessageSelected = message;
         this.msgs[Message.count++] = message;
         console.log(`added message`, message);
 
@@ -583,7 +558,37 @@ class TransactionSequenceDiagram {
         }
 
         for (let msg of this.msgs) {
-            msg.draw(this.ctx, this.yscale, this.yorigin+20, this.canvasHeight);
+            let y = 
+                this.yorigin 
+                + 50 // leave pad at top
+                + ((msg.time - this.startTime)/this.timeDuration) 
+                    * (this.canvasHeight - 100) 
+                     this.yscale;
+            // from here...
+            let startPoint = new Point(
+                msg.start.center.x, 
+                y,
+            );
+            //.. to here
+            let endPoint = new Point(
+                msg.end.center.x, 
+                y
+            );
+
+            if(msg === this.lastMessageSelected) {
+                this.ctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
+                this.ctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
+                // scroll so we can see the message
+                this.canvas.parentElement.scrollTop = y - 100;
+                this.lastMessageSelected = null;
+            }
+            else {
+                this.ctx.strokeStyle = TransactionSequenceDiagram.color;
+                this.ctx.fillStyle = TransactionSequenceDiagram.color;
+            }
+
+            msg.draw(this.ctx, startPoint, endPoint);
+
         }
 
     }

@@ -14,17 +14,16 @@ $("#leftVSplitter").kendoSplitter({
 orientation: "vertical"
 });
 
-$("#tabstrip").kendoTabStrip({
-});
+let tabStrip = $("#tabstrip").kendoTabStrip({
+}).data("kendoTabStrip");
 
 // FIXME: this does load the who 11MB into memory, but the bottleneck is the rendering
 // the paging fixes that.
 $.getJSON('ambaviz_messages.json')
     .done(function(data) {
         
-        let startTime = +data[0].Timestamp.replace(/,/g, '');
-        let endTime = +data[data.length - 1].Timestamp.replace(/,/g, '');
-        let xsd = new TransactionSequenceDiagram(startTime, endTime, $("#swimlane")[0]);
+        let xsd = new TransactionSequenceDiagram($("#swimlane")[0]);
+
         xsd.draw();
 
         $("#grid").kendoGrid({
@@ -46,8 +45,11 @@ $.getJSON('ambaviz_messages.json')
                 var dataItem = this.dataItem(selectedRows[0]);
                 console.log(dataItem);
                 xsd.addOrUpdateMessage(dataItem);
-            }
+            },
+            filterable: true
         });
+
+        tabStrip.select(0);
 
         $("#toolbar").kendoToolBar({
             items: [
