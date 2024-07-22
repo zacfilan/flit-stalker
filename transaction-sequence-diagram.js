@@ -160,8 +160,8 @@ class MessageBoundary {
         */
         this.swimlane = other.swimlane;
 
-        /** the time */
-        this.time = other.time;
+        /** the event time rebased a percentage of duration */
+        this.timePercent = other.timePercent;
     }
 }
 
@@ -213,16 +213,16 @@ class Message {
      * Draw the message on the given canvas
      * @param {Canvas} ctx the canvas context
      */
-    draw(ctx, yscale, yorigin) {
+    draw(ctx, yscale, yorigin, canvasHeight) {
         // arrow from here..
         let startPoint = new Point(
             this.start.swimlane.center.x, 
-            yorigin + (this.start.time * yscale)
+            yorigin + (this.start.timePercent * canvasHeight) * yscale
         );
         //.. to here
         let endPoint = new Point(
             this.end.swimlane.center.x, 
-            yorigin + (this.end.time * yscale)
+            yorigin + (this.end.timePercent * canvasHeight) * yscale
         );
 
         var headlen = 10; // length of head in pixels
@@ -239,8 +239,11 @@ class Message {
             (startPoint.x + endPoint.x) / 2,
             (startPoint.y + endPoint.y) / 2);
         this.label.draw(ctx);
-        //this.label.drawBorder(ctx);
 
+        // draw the timestamp 
+        ctx.fillText(this.Timestamp, 50, startPoint.y);
+
+        
         // Draw the arrow head as a filled triangle
         ctx.beginPath();
         ctx.moveTo(endPoint.x, endPoint.y);
@@ -295,6 +298,19 @@ class TransactionSequenceDiagram {
         this.endTime = endTime;
         this.timeDuration = endTime - startTime;
 
+        this.xorigin = 118;
+        this.yorigin = 50;
+
+        // the width of the cannvas was set in the HTML as 1920
+        // the height of the canvas is set in the HTML as 1080
+        // and get be referenced from the this.canvas property
+        // canvas.width = 1920;
+        // canvas.height = 1080;
+        this.canvasHeight = this.canvas.height - this.yorigin;
+        this.canvasWidth = this.canvas.width - this.xorigin;
+
+        // to map a time to a y locations on the canvas we do
+        // y = yorigin + (time - startTime) * yscale;
 
         /** nodes are the named TransactionSequenceDiagrams 
          * @type {Object.<string, Swimlane>}
@@ -313,8 +329,7 @@ class TransactionSequenceDiagram {
         */
         this.msgs = [];
 
-        this.xorigin = 118;
-        this.yorigin = 50;
+
 
         /** Position newly added nodes to the right */
         this.lastSwimlaneX = this.xorigin;
@@ -502,7 +517,7 @@ class TransactionSequenceDiagram {
          */
         msg.start = new MessageBoundary({
             swimlane: startSwimlane,
-            time: +msg.Timestamp 
+            timePercent: (+msg.Timestamp.replace(/,/g, '') - this.startTime) / this.timeDuration
         });
 
         /**
@@ -511,7 +526,7 @@ class TransactionSequenceDiagram {
          */
         msg.end = new MessageBoundary({
             swimlane: endSwimlane,
-            time: +msg.Timestamp + Message.DEFAULT_DURATION
+            timePercent: (+msg.Timestamp.replace(/,/g, '') + Message.DEFAULT_DURATION - this.startTime) / this.timeDuration
         });
 
         msg.label = new Label({
@@ -568,7 +583,7 @@ class TransactionSequenceDiagram {
         }
 
         for (let msg of this.msgs) {
-            msg.draw(this.ctx, this.yscale, this.yorigin);
+            msg.draw(this.ctx, this.yscale, this.yorigin+20, this.canvasHeight);
         }
 
     }
@@ -577,14 +592,14 @@ class TransactionSequenceDiagram {
     zoomIn() {
         // when i zoom in time differences appear larger
         // i effectively stretch the y-axis
-        this.yscale *= 1.1;
+        this.yscale *= 2;
         this.draw();
     }
 
     zoomOut() {
         // when i zoom out the large difference become smaller
         // i effectively contract the y-axis
-        this.yscale *= .9;
+        this.yscale *= .5;
         this.draw();
     }
 }
