@@ -7,6 +7,9 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <net/if.h>
 
 #define PORT 3000
 #define BUFFER_SIZE 1024
@@ -85,6 +88,34 @@ void handle_client(int client_socket) {
     close(client_socket);
 }
 
+char *get_external_ip(const char *interface) {
+    struct ifaddrs *ifaddr, *ifa;
+    int family;
+    static char ip[INET_ADDRSTRLEN];
+
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
+        exit(EXIT_FAILURE);
+    }
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL) continue;
+
+        family = ifa->ifa_addr->sa_family;
+
+        if (family == AF_INET && strcmp(ifa->ifa_name, interface) == 0) {
+            if (inet_ntop(family, &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, ip, sizeof(ip)) == NULL) {
+                perror("inet_ntop");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+    }
+
+    freeifaddrs(ifaddr);
+    return ip;
+}
+
 int main() {
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
@@ -109,7 +140,8 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Server running at http://127.0.0.1:%d/\n", PORT);
+    char *external_ip = get_external_ip("eth0");
+    printf("Server running at http://%s:%d/\n", external_ip, PORT);
 
     while (1) {
         int client_socket = accept(server_socket, NULL, NULL);
