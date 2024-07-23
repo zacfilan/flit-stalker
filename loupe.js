@@ -22,7 +22,7 @@ let tabStrip = $("#tabstrip").kendoTabStrip({
 $.getJSON('ambaviz_messages.json')
     .done(function(data) {
         
-        let xsd = new TransactionSequenceDiagram($("#swimlane")[0]);
+        let xsd = new TransactionSequenceDiagram($("#swimlane-header")[0], $("#swimlane")[0]);
 
         xsd.draw();
 

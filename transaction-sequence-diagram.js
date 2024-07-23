@@ -133,13 +133,13 @@ class Swimlane extends Label {
     }
 
     /** Draw the complete swimlane on the canvas */
-    draw(ctx) {
+    draw(hctx, ctx) {
         // draw the Label
-        super.draw(ctx);
+        super.draw(hctx);
         
         // draw the verical line
         ctx.beginPath();
-        ctx.moveTo(this.center.x, this._y2);
+        ctx.moveTo(this.center.x, 0);
         ctx.lineTo(this.center.x, ctx.canvas.height);
         ctx.stroke();
     }
@@ -255,15 +255,19 @@ class Point {
  * This is the TransactionSequenceDiagram widget. view and model.
  */
 class TransactionSequenceDiagram {
-    constructor(canvas) {
+    constructor(hcanvas, canvas) {
+        this.hctx = hcanvas.getContext('2d')  ;
+
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        this.ctx.fillStyle = 'white';
-        this.ctx.strokeStyle = 'white';
-        this.ctx.lineWidth = 1;
-        this.ctx.font = '10px Arial';
-        this.ctx.textAlign = 'center';
+        for(let ctx of [this.ctx, this.hctx]) {
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1;
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+        }
 
         /** the start sim time of the display window.
          * theis depends on the messages we want to display int he window
@@ -292,11 +296,11 @@ class TransactionSequenceDiagram {
         // and get be referenced from the this.canvas property
         // canvas.width = 1920;
         // canvas.height = 1080;
-        this.canvasHeight = this.canvas.height - this.yorigin;
+        this.canvasHeight = this.canvas.height;
         this.canvasWidth = this.canvas.width - this.xorigin;
 
         // to map a time to a y locations on the canvas we do
-        // y = yorigin + (time - startTime) * yscale;
+        // y = (time - startTime) * yscale;
 
         /** nodes are the named TransactionSequenceDiagrams 
          * @type {Object.<string, Swimlane>}
@@ -330,9 +334,9 @@ class TransactionSequenceDiagram {
         let that = this;
         console.log("canvas: " + this.ctx);
 
-        canvas.addEventListener('mousedown', function (event) {
+        hcanvas.addEventListener('mousedown', function (event) {
             // Get the mouse position
-            let rect = canvas.getBoundingClientRect();
+            let rect = hcanvas.getBoundingClientRect();
             let mouseX = event.clientX - rect.left;
             let mouseY = event.clientY - rect.top;
             console.log(`Mouse down at (${mouseX}, ${mouseY})`);
@@ -343,11 +347,11 @@ class TransactionSequenceDiagram {
             }
         });
 
-        canvas.addEventListener('mouseup', function (event) {
+        hcanvas.addEventListener('mouseup', function (event) {
             that.mouseDown = false;
         });
 
-        canvas.addEventListener('mousemove', function (event) {
+        hcanvas.addEventListener('mousemove', function (event) {
             if (that.mouseDown) {
                 // we are moving a node, only the x-coordinate matters as I move
                 // it left or right
@@ -364,14 +368,14 @@ class TransactionSequenceDiagram {
             }
 
             // Get the mouse position
-            let rect = canvas.getBoundingClientRect();
+            let rect = hcanvas.getBoundingClientRect();
             let mouseX = event.clientX - rect.left;
             let mouseY = event.clientY - rect.top;
             //console.log(`Mouse down at (${mouseX}, ${mouseY})`);
 
             let found = false;
             // is the mouse over a label 
-            for (let node of Label.instances) {             // FIXME: use dedicated array for speed?
+            for (let node of Object.values(that.swimlanes)) {             // FIXME: use dedicated array for speed?
 
                 //console.log(`${node.label} (${node.bb.x1}, ${node.bb.y1}) - (${node.bb.x1 + node.bb.width}, ${node.bb.y1 + node.bb.height})`);
                 // Check if the mouse is within the bounds of the text
@@ -390,7 +394,7 @@ class TransactionSequenceDiagram {
                                     mouseY: mouseY
                                 }
                             });
-                            canvas.dispatchEvent(customEvent);
+                            hcanvas.dispatchEvent(customEvent);
                         }
                         // enter the new active node
                         let customEvent = new CustomEvent('canvas_node_enter', {
@@ -400,7 +404,7 @@ class TransactionSequenceDiagram {
                                 mouseY: mouseY
                             }
                         });
-                        canvas.dispatchEvent(customEvent);
+                        hcanvas.dispatchEvent(customEvent);
                     }
                     // else we are just moving within the active node
 
@@ -419,18 +423,18 @@ class TransactionSequenceDiagram {
                         mouseY: mouseY
                     }
                 });
-                canvas.dispatchEvent(customEvent);
+                hcanvas.dispatchEvent(customEvent);
             }
         });
 
-        canvas.addEventListener('canvas_node_enter', function (event) {
+        hcanvas.addEventListener('canvas_node_enter', function (event) {
             console.log(`active node`, event.detail.node);
             that.activeNode = event.detail.node;
             
             that.draw();
         });
 
-        canvas.addEventListener('canvas_node_exit', function (event) {
+        hcanvas.addEventListener('canvas_node_exit', function (event) {
             console.log(`exit node ${event.detail.node.label}`);
             if (that.activeNode == event.detail.node) {
                 that.activeNode = null;
@@ -438,7 +442,7 @@ class TransactionSequenceDiagram {
             that.draw();
         });
 
-        canvas.addEventListener('canvas_node_mousedown', function (event) {
+        hcanvas.addEventListener('canvas_node_mousedown', function (event) {
 
         });
 
@@ -446,6 +450,7 @@ class TransactionSequenceDiagram {
 
     clear() {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+        this.hctx.clearRect(0, 0, this.hctx.canvas.width, this.hctx.canvas.height);
     }
 
     /**
@@ -459,12 +464,12 @@ class TransactionSequenceDiagram {
         let x = this.lastSwimlaneAdded?._x2 ?? this.xorigin;
         x += TransactionSequenceDiagram.MIN_NODE_SPACING;
         
-        let mt = this.ctx.measureText(labelText);
+        let mt = this.hctx.measureText(labelText);
 
         let swimlane = new Swimlane({
             text: labelText,
-            center: new Point(x, this.yorigin - 12 - 5 - 5 - 1 -1),
-            width: this.ctx.measureText(labelText).width,
+            center: new Point(x, this.hctx.canvas.height / 2),
+            width: this.hctx.measureText(labelText).width,
             height: 12 + (2 * 5), // FIXME: hack
         });
 
@@ -524,10 +529,13 @@ class TransactionSequenceDiagram {
     // this draws the axis' of the grid
     drawAxis() {
         this.ctx.strokeStyle = TransactionSequenceDiagram.axisColor;
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, this.yorigin);
-        this.ctx.lineTo(this.ctx.canvas.width, this.yorigin);
-        this.ctx.stroke();
+        this.hctx.beginPath();
+        this.hctx.moveTo(0, this.hctx.canvas.height);
+        this.hctx.lineTo(this.ctx.canvas.width, this.hctx.canvas.height);
+        this.hctx.moveTo(this.xorigin, 0);
+        this.hctx.lineTo(this.xorigin, this.hctx.canvas.height);
+      
+        this.hctx.stroke();
 
         this.ctx.beginPath();
         this.ctx.moveTo(this.xorigin, 0);
@@ -541,26 +549,25 @@ class TransactionSequenceDiagram {
         this.drawAxis();
 
         if(this.activeNode) {
-            this.ctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
-            this.ctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
-            this.activeNode.draw(this.ctx);
-            this.activeNode.drawBorder(this.ctx);
+            this.hctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
+            this.hctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
+            this.activeNode.draw(this.hctx, this.ctx);
+            this.activeNode.drawBorder(this.hctx);
         }
 
-        this.ctx.strokeStyle = TransactionSequenceDiagram.color;
-        this.ctx.fillStyle = TransactionSequenceDiagram.color;
+        this.hctx.strokeStyle = TransactionSequenceDiagram.color;
+        this.hctx.fillStyle = TransactionSequenceDiagram.color;
 
         for (let swimlane of Object.values(this.swimlanes)) {
             if(swimlane === this.activeNode) {
                 continue;
             }
-            swimlane.draw(this.ctx);
+            swimlane.draw(this.hctx, this.ctx);
         }
 
         for (let msg of this.msgs) {
             let y = 
-                this.yorigin 
-                + 50 // leave pad at top
+                50 // leave pad at top
                 + ((msg.time - this.startTime)/this.timeDuration) 
                     * (this.canvasHeight - 100) 
                      this.yscale;
@@ -579,7 +586,7 @@ class TransactionSequenceDiagram {
                 this.ctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
                 this.ctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
                 // scroll so we can see the message
-                this.canvas.parentElement.scrollTop = y - 100;
+                this.canvas.parentElement.parentElement.scrollTop = y - 100;
                 this.lastMessageSelected = null;
             }
             else {
