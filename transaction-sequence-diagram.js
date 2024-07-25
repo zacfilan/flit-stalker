@@ -169,7 +169,7 @@ class Message {
 
         /** the timestamp as a nnumber */
         this.time = +this.Timestamp.replace(/,/g, '');
-
+        this.endTs = +other.endTs; // a number
         /**
          * The message text <opcode address>
          * e.g. "access 0x20081151BC0"
@@ -212,8 +212,10 @@ class Message {
             (startPoint.y + endPoint.y) / 2);
         this.label.draw(ctx);
 
-        // draw the timestamp 
-        ctx.fillText(this.Timestamp, 50, startPoint.y);
+        // FIXME:
+        // This will go into another element
+        // // draw the timestamp 
+        // ctx.fillText(this.Timestamp, 50, startPoint.y);
         
         // Draw the arrow head as a filled triangle
         ctx.beginPath();
@@ -255,7 +257,7 @@ class Point {
  * This is the TransactionSequenceDiagram widget. view and model.
  */
 class TransactionSequenceDiagram {
-    constructor(hcanvas, canvas) {
+    constructor(startTime, endTime, hcanvas, canvas) {
         this.hctx = hcanvas.getContext('2d')  ;
 
         this.canvas = canvas;
@@ -272,21 +274,21 @@ class TransactionSequenceDiagram {
         /** the start sim time of the display window.
          * theis depends on the messages we want to display int he window
          */
-        this.startTime = Number.MAX_SAFE_INTEGER;
+        this.startTime = startTime;
         
         /** then end sim time of the display window.
          * this depends on the messages we want to display in the window
          */
-        this.endTime = Number.MIN_SAFE_INTEGER;
+        this.endTime = endTime;
 
         /** the simtime duration that the display window covers */
         this.timeDuration = this.endTime - this.startTime;
 
         /** the x-origin for the transactions */
-        this.xorigin = 118;
+        this.xorigin = 0;
 
         /** the y-origin for the transatiocns */
-        this.yorigin = 50;
+        this.yorigin = 0;
 
         /** The last message added or selected */
         this.lastMessageSelected = null;
@@ -334,6 +336,124 @@ class TransactionSequenceDiagram {
         let that = this;
         console.log("canvas: " + this.ctx);
 
+        let isThrottled = false;
+        let delay = 100; // milliseconds
+
+        $(document).ready(function() {
+            const draggable = document.getElementById('time-trough');
+            let startY = 0;
+            let currentY = 0;
+            let isDragging = false;
+            let highlightDiv = null;
+            let draggableRect;
+            let zoomTop;
+            let zoomHeight;
+
+            // Event listener for mouse down
+            draggable.addEventListener('mousedown', (e) => {
+                 // Get the top offset of the draggable element
+                draggableRect = draggable.getBoundingClientRect();
+                currentY = e.clientY - draggableRect.top;
+
+                zoomTop = startY = currentY;
+                zoomHeight = 0;
+
+                isDragging = true;
+            
+                // Create the see-through colored div
+                highlightDiv = document.createElement('div');
+                highlightDiv.style.position = 'absolute';
+                highlightDiv.style.top = zoomTop + 50 + 'px';
+                highlightDiv.style.height = '0px';
+                highlightDiv.style.width = '100%';
+                highlightDiv.style.backgroundColor = 'rgba(0, 128, 0, 0.5)'; // Semi-transparent green
+                highlightDiv.style.pointerEvents = 'none'; // Ensure it doesn't interfere with other events
+            
+                // Append the highlight div to the #topPane element
+                const topPane = document.getElementById('topPane');
+                topPane.appendChild(highlightDiv);
+
+                //console.log(`top:${highlightDiv.style.top} height:${highlightDiv.style.height}`);
+
+                // Add event listeners for mouse move and mouse up
+                draggable.addEventListener('mousemove', onMouseMove);
+                draggable.addEventListener('mouseup', onMouseUp);
+            });
+            
+            // Function to handle mouse move
+            function onMouseMove(e) {
+                if (isDragging) {
+                    currentY = e.clientY - draggableRect.top;
+                    let verticalLength = currentY - startY;
+            
+                    // Update the highlight div's position and height
+                    zoomTop = Math.min(startY, currentY);
+                    zoomHeight = Math.abs(verticalLength);
+
+                    highlightDiv.style.top = zoomTop + 50 + 'px';
+                    highlightDiv.style.height = zoomHeight + 'px';
+                                
+                    //console.log(`top:${highlightDiv.style.top} height:${highlightDiv.style.height}`);
+                }
+            }
+            
+            // Function to handle mouse up
+            function onMouseUp(e) {
+                isDragging = false;
+                draggable.removeEventListener('mousemove', onMouseMove);
+                draggable.removeEventListener('mouseup', onMouseUp);
+
+                // zomm into the selected region
+                // show everything in here in the unscrolled part of the canvas
+              
+                // fix the center line of the selection, that should not have  
+                // moved after the zoom.
+
+                // zoom until the top and bottem of the selection would be at
+                // top and bottem of the unscrolled part of the canvas with some
+                // visual padding left.
+
+                console.log(`top:${zoomTop} height:${zoomHeight}`);
+
+                that.startTime = that.canvasYOffsetToTime(zoomTop);
+                that.endTime = that.canvasYOffsetToTime(zoomTop + zoomHeight);
+                that.timeDuration = that.endTime - that.startTime;
+
+                // Remove the highlight div from the DOM
+                if (highlightDiv) {
+                    highlightDiv.remove();
+                    highlightDiv = null;
+                }
+
+                that.draw();
+
+            }
+            
+            let cornerElement = document.getElementById('corner');
+            let prevScrollTop = 0;
+        
+            $('#topPane').scroll(function() {
+                if (isThrottled) {
+                    return;
+                }
+
+                let currentScrollTop = $(this).scrollTop();
+                if (currentScrollTop === prevScrollTop) {
+                    // hscroll
+                    return;
+                }
+                prevScrollTop = currentScrollTop;
+                let scrollHeight = this.scrollHeight - this.clientHeight;
+                let scrollRatio = currentScrollTop / scrollHeight;
+
+                cornerElement.textContent = Math.trunc(that.startTime + 
+                    scrollRatio * that.timeDuration).toLocaleString();                
+                setTimeout(function() {
+                    isThrottled = false;
+                }, delay);
+            });
+        });
+
         hcanvas.addEventListener('mousedown', function (event) {
             // Get the mouse position
             let rect = hcanvas.getBoundingClientRect();
@@ -356,11 +476,11 @@ class TransactionSequenceDiagram {
                 // we are moving a node, only the x-coordinate matters as I move
                 // it left or right
 
-                if(event.clientX < that.xorigin + that.activeNode.width / 2) {
+                if(event.clientX <118 + that.activeNode.width / 2) {
                     return; // don't move past the x-origin
                 }
 
-                that.activeNode.center.x = event.clientX;
+                that.activeNode.center.x = event.clientX - 118;
                 that.activeNode._calcBB(); // if i only change one this is faster
                 
                 that.draw();
@@ -521,9 +641,9 @@ class TransactionSequenceDiagram {
         let message = new Message(msg);
         this.lastMessageSelected = message;
         this.msgs[Message.count++] = message;
-        console.log(`added message`, message);
+        //console.log(`added message`, message);
 
-        this.draw();
+        //this.draw();
     }
 
     // this draws the axis' of the grid
@@ -565,28 +685,32 @@ class TransactionSequenceDiagram {
             swimlane.draw(this.hctx, this.ctx);
         }
 
+        // only need to draw the messages in the time duration window
         for (let msg of this.msgs) {
-            let y = 
-                50 // leave pad at top
-                + ((msg.time - this.startTime)/this.timeDuration) 
-                    * (this.canvasHeight - 100) 
-                     this.yscale;
+            // FIXME: this is CRAZY slow to do this. Use a binary search to find the first and last
+            if(!(this.startTime <= msg.time && msg.endTs <= this.endTime)) {
+                return;
+            }
+
+            let y1 = this.canvasTimeToYOffset(msg.time);
+            let y2 = this.canvasTimeToYOffset(msg.endTs);
+
             // from here...
             let startPoint = new Point(
                 msg.start.center.x, 
-                y,
+                y1,
             );
             //.. to here
             let endPoint = new Point(
                 msg.end.center.x, 
-                y
+                y2
             );
 
             if(msg === this.lastMessageSelected) {
                 this.ctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
                 this.ctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
                 // scroll so we can see the message
-                this.canvas.parentElement.parentElement.scrollTop = y - 100;
+                this.canvas.parentElement.parentElement.scrollTop = y1;
                 this.lastMessageSelected = null;
             }
             else {
@@ -602,18 +726,32 @@ class TransactionSequenceDiagram {
 
     // zooming in 
     zoomIn() {
-        // when i zoom in time differences appear larger
-        // i effectively stretch the y-axis
-        this.yscale *= 2;
+        this.startTime *= 2;
+        this.endTime /= 2;
+        this.timeDuration = this.endTime - this.startTime;    
         this.draw();
     }
 
     zoomOut() {
         // when i zoom out the large difference become smaller
         // i effectively contract the y-axis
-        this.yscale *= .5;
+        this.startTime /= 2;
+        this.endTime *= 2;
+        this.timeDuration = this.endTime - this.startTime;
         this.draw();
     }
+
+            // given any 0 based height in pixels in the canvas convert that to
+        // a time offset
+    canvasYOffsetToTime(offset) {
+        return this.startTime + (parseInt(offset) / this.canvasHeight) * this.timeDuration;
+    }
+
+        // inverse of above
+    canvasTimeToYOffset(time) {
+            return (time - this.startTime) / this.timeDuration * this.canvasHeight;
+    }
+
 }
 
 /** How close nodes are allowed to be */

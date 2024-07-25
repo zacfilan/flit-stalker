@@ -21,10 +21,23 @@ let tabStrip = $("#tabstrip").kendoTabStrip({
 // the paging fixes that.
 $.getJSON('ambaviz_messages.json')
     .done(function(data) {
-        
-        let xsd = new TransactionSequenceDiagram($("#swimlane-header")[0], $("#swimlane")[0]);
+        let startTime = +(data[0].Timestamp.replace(/,/g, ''));
+        let endTime = +(data[data.length - 1].Timestamp.replace(/,/g, ''));
 
-        xsd.draw();
+        let xsd = new TransactionSequenceDiagram(
+            startTime,
+            endTime,
+            $("#swimlane-header")[0], 
+            $("#swimlane")[0]
+        );
+
+        // //FIXME: should I dump them all?
+        // let count = 0;
+        // for(let msg in data) {
+        //     xsd.addOrUpdateMessage(data[msg]);
+        // }
+
+        // xsd.draw();
 
         $("#grid").kendoGrid({
             columns: [
@@ -45,7 +58,15 @@ $.getJSON('ambaviz_messages.json')
                 var dataItem = this.dataItem(selectedRows[0]);
                 console.log(dataItem);
                 xsd.addOrUpdateMessage(dataItem);
+                xsd.draw();
             },
+            dataBound: function(e) {
+                // Call the resize method after the grid has been databound
+                setTimeout(function() {
+                    $(window).resize();
+                }, 100);            },
+                // the old horrible timeout trickery
+
             filterable: true
         });
 

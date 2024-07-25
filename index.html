@@ -37,12 +37,13 @@
     <div id="hSplitter">
         <div id="leftVSplitter">
             <div id="topPane">
-                <div id="firstCanvasContainer">
+                <div class="header-container">
+                    <div id="corner">&nbsp;</div>
                     <canvas id="swimlane-header" width="1920" height="50"></canvas>
                 </div>
-                <div id="secondCanvasContainer">
-                    <canvas id="swimlane" width="1920" height="1080"></canvas>
-                </div>
+                <div class="content">
+                    <div id="time-trough" class="left"></div>
+                    <canvas id="swimlane" width="1920" height="1080"></canvas>                </div>
             </div>
             <div id="tabstrip">
                 <ul>
@@ -53,7 +54,7 @@
                 <div>Nothing Here!</div>
             </div>
         </div>
-    <div>Pane B</div>
+        <div>Pane B</div>
     </div>
 
     <script type="module" src="loupe.js"></script>
@@ -71,23 +72,74 @@
         }
 
         #topPane {
-            display: flex;
-            flex-direction: column;
-            /*overflow: hidden;*/
+            height: 1130px
         }
 
-        #firstCanvasContainer {
+        .container {
+            overflow: auto;
+        }
+        
+        .header-container {
+            display: inline-flex;
             position: sticky;
             top: 0;
-            z-index: 1; /* Ensure it stays above the scrollable content */
-            height: 50px
+            z-index: 1; 
+            box-sizing: border-box;
+            border-bottom: 2px solid #e0e0e0;
         }
 
-        #secondCanvasContainer {
-            flex: 1;
-            /*overflow: auto; /* Make the second canvas container scrollable */
-            height: 1080px; /* Adjust as needed */
+        #corner {
+            width: 118px;
+            height: 50px;
+            background-color: #00252e;
+            color: white;
+
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            box-sizing: border-box;
+            border-right: 2px solid #e0e0e0;
         }
+
+        .header {
+            width: 1920px;
+            height: 50px;
+ 
+
+            background:#00252e;
+            color: white;
+
+        }
+
+         .content {
+            display: inline-flex;
+        } 
+
+        .left {
+            width: 118px;
+            height: 1080px;
+            background-color: #e0e0e0;
+            position: sticky;
+            left: 0;
+            background: #00252e;
+            color: white;
+            box-sizing: border-box;
+            border-right: 2px solid #e0e0e0;
+        }
+
+        .main {
+            width: 1920px;
+            height: 1080px;
+            background-color: #00252e;
+            color: white;
+
+            /* Add overflow if the content exceeds the dimensions */
+            overflow: auto;
+        }
+
+
+
 
         canvas {
             background-color: #00252e
@@ -128,7 +180,6 @@
                 /* Replace $hover-scrollbar with the actual color value */
             }
         }
-
     </style>
 
 </body>
