@@ -271,6 +271,9 @@ class TransactionSequenceDiagram {
             ctx.textAlign = 'center';
         }
 
+        /** the timescale of the sime */
+        this.timescale = null;
+
         /** the start sim time of the display window.
          * theis depends on the messages we want to display int he window
          */
@@ -447,7 +450,7 @@ class TransactionSequenceDiagram {
                 let scrollRatio = currentScrollTop / scrollHeight;
 
                 cornerElement.textContent = Math.trunc(that.startTime + 
-                    scrollRatio * that.timeDuration).toLocaleString();                
+                    scrollRatio * that.timeDuration).toLocaleString()+"\n"+that.timescale;                
                 setTimeout(function() {
                     isThrottled = false;
                 }, delay);

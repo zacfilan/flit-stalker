@@ -1,10 +1,8 @@
 import {TransactionSequenceDiagram} from './transaction-sequence-diagram.js';
-
+import {Flit, FlitField} from './flit.js';
 $("#menu").kendoMenu({
     openOnClick: true
 });
-
-
 
 $("#hSplitter").kendoSplitter({
 orientation: "horizontal"
@@ -17,12 +15,17 @@ orientation: "vertical"
 let tabStrip = $("#tabstrip").kendoTabStrip({
 }).data("kendoTabStrip");
 
+/** decoders for different types of flit 
+ * @type {Object.<string, Flit.Decoder>}
+ */
+let flitDecoders = {};
+
 // FIXME: this does load the who 11MB into memory, but the bottleneck is the rendering
 // the paging fixes that.
 $.getJSON('ambaviz_messages.json')
     .done(function(data) {
-        let startTime = +(data[0].Timestamp.replace(/,/g, ''));
-        let endTime = +(data[data.length - 1].Timestamp.replace(/,/g, ''));
+        let startTime = +(data.messages[0].Timestamp.replace(/,/g, ''));
+        let endTime = +(data.messages[data.messages.length - 1].Timestamp.replace(/,/g, ''));
 
         let xsd = new TransactionSequenceDiagram(
             startTime,
@@ -31,13 +34,30 @@ $.getJSON('ambaviz_messages.json')
             $("#swimlane")[0]
         );
 
+        xsd.timescale = data.timescale;
+
         // //FIXME: should I dump them all?
         // let count = 0;
-        // for(let msg in data) {
-        //     xsd.addOrUpdateMessage(data[msg]);
+        // for(let msg in data.messages) {
+        //     xsd.addOrUpdateMessage(data.messages[msg]);
         // }
 
         // xsd.draw();
+        
+        // consume and build up the decoders
+        Object.entries(data.decoders).forEach( ([name, fieldDecoderArray]) => {
+            flitDecoders[name] = new Flit(fieldDecoderArray);
+        });
+
+        let flitGrid = $("#flit-grid").kendoGrid({
+            columns: [
+                { field: "Field" },
+                { field: "Bits" },
+                { field: "Number" },
+                { field: "Decoded" }
+            ],
+            resizable: true,
+        }).data("kendoGrid");
 
         $("#grid").kendoGrid({
             columns: [
@@ -47,7 +67,7 @@ $.getJSON('ambaviz_messages.json')
                 { field: "Timestamp" }
             ],
             dataSource: {
-                data: data,
+                data: data.messages,
                 pageSize: 50
             },
             pageable: true,
@@ -59,6 +79,10 @@ $.getJSON('ambaviz_messages.json')
                 console.log(dataItem);
                 xsd.addOrUpdateMessage(dataItem);
                 xsd.draw();
+
+                let decoded = flitDecoders[dataItem.decoder];
+                decoded.value = BigInt(dataItem.flit);
+                flitGrid.dataSource.data(decoded.fields);
             },
             dataBound: function(e) {
                 // Call the resize method after the grid has been databound
