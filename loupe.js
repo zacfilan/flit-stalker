@@ -24,8 +24,8 @@ let flitDecoders = {};
 // the paging fixes that.
 $.getJSON('ambaviz_messages.json')
     .done(function(data) {
-        let startTime = +(data.messages[0].Timestamp.replace(/,/g, ''));
-        let endTime = +(data.messages[data.messages.length - 1].Timestamp.replace(/,/g, ''));
+        let startTime = data.messages[0].Timestamp;
+        let endTime = data.messages[data.messages.length - 1].endTs;
 
         let xsd = new TransactionSequenceDiagram(
             startTime,
@@ -51,18 +51,31 @@ $.getJSON('ambaviz_messages.json')
             resizable: true,
         }).data("kendoGrid");
 
-        $("#grid").kendoGrid({
+        let msgGrid = $("#grid").kendoGrid({
             columns: [
                 { field: "Message" },
                 { field: "Source Scope" },
                 { field: "Target Scope" },
-                { field: "Timestamp" }
+                {
+                    field: "Timestamp", 
+                    type: "number", 
+                    template: dataItem => dataItem.Timestamp.toLocaleString() },
             ],
             dataSource: {
                 data: data.messages,
                 pageSize: 50
             },
-            pageable: true,
+            pageable: {
+                //refresh: true,
+                pageSizes: [5, 10, 20, 100],
+                //info: true,
+                buttonCount: 5,
+                //numeric: false,
+                alwaysVisible: true // Ensure the pager is always visible
+            },
+            toolbar: [
+                { name: "clearFilters", text: "Clear All Filters" }
+            ],
             resizable: true,
             selectable: "row",
             change: function(e) {
@@ -120,6 +133,13 @@ $.getJSON('ambaviz_messages.json')
                 
 
             filterable: true
+        }).data("kendoGrid");
+
+        // Attach event handlers to the custom buttons
+        $('button[data-role="clearfilters"]').on("click", function() {
+            var grid = $("#grid").data("kendoGrid");
+            grid.dataSource.filter({});
+            console.log("clearing filters");
         });
 
         tabStrip.select(0);

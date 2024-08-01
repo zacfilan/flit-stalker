@@ -168,8 +168,10 @@ class Message {
         this.Timestamp = other.Timestamp;
 
         /** the timestamp as a nnumber */
-        this.time = +this.Timestamp.replace(/,/g, '');
-        this.endTs = +other.endTs; // a number
+        this.time = this.Timestamp;
+        this.endTs = other.endTs; // a number
+
+
         /**
          * The message text <opcode address>
          * e.g. "access 0x20081151BC0"
@@ -254,7 +256,6 @@ class Point {
 class TransactionSequenceDiagram {
     constructor(startTime, endTime, hcanvas, canvas) {
         this.hctx = hcanvas.getContext('2d')  ;
-
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
@@ -402,10 +403,22 @@ class TransactionSequenceDiagram {
 
                 console.log(`top:${zoomTop} height:${zoomHeight}`);
 
-                that.canvasSetTime(
-                    that.canvasYOffsetToTime(zoomTop), 
-                    that.canvasYOffsetToTime(zoomTop + zoomHeight)
-                );
+                //Define the filter criteria
+                var filter = {
+                    logic: "and",
+                    filters: [
+                        { field: "Timestamp", operator: "gte", value: that.canvasYOffsetToTime(zoomTop) },
+                        { field: "Timestamp", operator: "lte", value: that.canvasYOffsetToTime(zoomTop + zoomHeight) }
+                    ]
+                };
+
+                // Apply the filter to the grid's data source
+                $("#grid").data("kendoGrid").dataSource.filter(filter);
+
+                // that.canvasSetTime(
+                //     that.canvasYOffsetToTime(zoomTop), 
+                //     that.canvasYOffsetToTime(zoomTop + zoomHeight)
+                // );
 
                 // Remove the highlight div from the DOM
                 if (highlightDiv) {
@@ -607,7 +620,7 @@ class TransactionSequenceDiagram {
             msg.end = this.addSwimlane(msg['Target Scope']);
         }
 
-        msg.time = +msg.Timestamp.replace(/,/g, '');
+        msg.time = msg.Timestamp;
 
         msg.label = new Label({
             text: msg.Message,
@@ -626,6 +639,8 @@ class TransactionSequenceDiagram {
         //this.draw();
     }
 
+    // FIXME: this only works if the messages thatr are in the duration are
+    // always shown
     scrollToMessage(msg) {
         // keep the current duration size, but move the start and end times
         let midPoint = this.duration/2;
@@ -723,12 +738,12 @@ class TransactionSequenceDiagram {
     // given any 0 based height in pixels in the canvas convert that to
     // a time offset
     canvasYOffsetToTime(offset) {
-        return this.startTime + (parseInt(offset) / this.canvasHeight) * this.timeDuration;
+        return Math.trunc(this.startTime + (parseInt(offset) / this.canvasHeight) * this.timeDuration);
     }
 
     // inverse of above
     canvasTimeToYOffset(time) {
-            return (time - this.startTime) / this.timeDuration * this.canvasHeight;
+            return Math.trunc((time - this.startTime) / this.timeDuration * this.canvasHeight);
     }
 
     /** set the start, end and time duration of the canvas */
