@@ -136,8 +136,20 @@ class Swimlane extends Label {
     draw(hctx, ctx) {
         // draw the Label
         super.draw(hctx);
+        // Create a horizontal linear gradient
+
+        ctx.lineWidth = 10; // Set the stroke width to 5 pixels
+        var gradient = ctx.createLinearGradient(this.center.x - ctx.lineWidth / 2, 0, this.center.x + ctx.lineWidth / 2, 0);
         
-        // draw the verical line
+        // Add color stops
+        gradient.addColorStop(0, '#0e4242'); // Start color
+        gradient.addColorStop(0.5, '#2b7a74'); // Middle color
+        gradient.addColorStop(1, '#0e4242'); // End color
+        
+        // Apply the gradient to the stroke style
+        ctx.strokeStyle = gradient;
+        
+        // Draw the vertical line
         ctx.beginPath();
         ctx.moveTo(this.center.x, 0);
         ctx.lineTo(this.center.x, ctx.canvas.height);
@@ -170,7 +182,6 @@ class Message {
         /** the timestamp as a nnumber */
         this.time = this.Timestamp;
         this.endTs = other.endTs; // a number
-
 
         /**
          * The message text <opcode address>
@@ -208,7 +219,16 @@ class Message {
         ctx.lineTo(endPoint.x, endPoint.y);
         ctx.stroke();
 
+        // Draw the arrow head as a filled triangle
+        ctx.beginPath();
+        ctx.moveTo(endPoint.x, endPoint.y);
+        ctx.lineTo(endPoint.x - headlen * Math.cos(angle - Math.PI / 6), endPoint.y - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(endPoint.x - headlen * Math.cos(angle + Math.PI / 6), endPoint.y - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath(); // Close the path
+        ctx.fill(); // Fill the path
+
         // draw the label of the message
+        ctx.fillStyle = '#c9c9bb';
         this.label.center = new Point( 
             (startPoint.x + endPoint.x) / 2,
             (startPoint.y + endPoint.y) / 2);
@@ -219,13 +239,7 @@ class Message {
         // // draw the timestamp 
         // ctx.fillText(this.Timestamp, 50, startPoint.y);
         
-        // Draw the arrow head as a filled triangle
-        ctx.beginPath();
-        ctx.moveTo(endPoint.x, endPoint.y);
-        ctx.lineTo(endPoint.x - headlen * Math.cos(angle - Math.PI / 6), endPoint.y - headlen * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(endPoint.x - headlen * Math.cos(angle + Math.PI / 6), endPoint.y - headlen * Math.sin(angle + Math.PI / 6));
-        ctx.closePath(); // Close the path
-        ctx.fill(); // Fill the path
+
     }
 }
 
@@ -263,7 +277,7 @@ class TransactionSequenceDiagram {
             ctx.fillStyle = 'white';
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 1;
-            ctx.font = '10px Arial';
+            ctx.font = '12px Arial';
             ctx.textAlign = 'center';
         }
 
@@ -433,6 +447,7 @@ class TransactionSequenceDiagram {
             let cornerElement = document.getElementById('corner');
             let prevScrollTop = 0;
         
+            // adjust the time in the upper left corner as we scroll
             $('#topPane').scroll(function() {
                 if (isThrottled) {
                     return;
@@ -651,15 +666,15 @@ class TransactionSequenceDiagram {
 
     // this draws the axis' of the grid
     drawAxis() {
-        this.ctx.strokeStyle = TransactionSequenceDiagram.axisColor;
+        this.hctx.strokeStyle = TransactionSequenceDiagram.axisColor;
         this.hctx.beginPath();
         this.hctx.moveTo(0, this.hctx.canvas.height);
         this.hctx.lineTo(this.ctx.canvas.width, this.hctx.canvas.height);
         this.hctx.moveTo(this.xorigin, 0);
         this.hctx.lineTo(this.xorigin, this.hctx.canvas.height);
-      
         this.hctx.stroke();
 
+        this.ctx.strokeStyle = TransactionSequenceDiagram.axisColor;
         this.ctx.beginPath();
         this.ctx.moveTo(this.xorigin, 0);
         this.ctx.lineTo(this.xorigin, this.ctx.canvas.height);
@@ -689,31 +704,34 @@ class TransactionSequenceDiagram {
         }
 
         // only need to draw the messages in the time duration window
+        this.ctx.lineWidth = 1; 
         for (let msg of this.msgs) {
             let y1 = this.canvasTimeToYOffset(msg.time);
             let y2 = this.canvasTimeToYOffset(msg.endTs);
 
+            let edge = msg.start.center.x <= msg.end.center.x ? 5 : -5;
+
             // from here...
             let startPoint = new Point(
-                msg.start.center.x, 
+                msg.start.center.x + edge, 
                 y1,
             );
             //.. to here
             let endPoint = new Point(
-                msg.end.center.x, 
+                msg.end.center.x - edge, 
                 y2
             );
 
             if(msg === this.lastMessageSelected) {
                 this.ctx.strokeStyle = TransactionSequenceDiagram.activeNodeColor;
                 this.ctx.fillStyle = TransactionSequenceDiagram.activeNodeColor;
-                // scroll so we can see the message
-                this.canvas.parentElement.parentElement.scrollTop = y1;
+                // FIXME: scroll so we can see the message
+                // this.canvas.parentElement.parentElement.scrollTop = y1;
                 this.lastMessageSelected = null;
             }
             else {
-                this.ctx.strokeStyle = TransactionSequenceDiagram.color;
-                this.ctx.fillStyle = TransactionSequenceDiagram.color;
+                this.ctx.strokeStyle = TransactionSequenceDiagram.inactiveNodeColor;
+                this.ctx.fillStyle = TransactionSequenceDiagram.inactiveNodeColor;
             }
 
             msg.draw(this.ctx, startPoint, endPoint);
@@ -782,6 +800,8 @@ TransactionSequenceDiagram.axisColor = '#93a1a1';
 /** the default background color of the sequence diagram */
 TransactionSequenceDiagram.backgroundColor = '#00252e';
 
-TransactionSequenceDiagram.activeNodeColor = '#689500';
+TransactionSequenceDiagram.activeNodeColor = '#65c7f1';
+TransactionSequenceDiagram.inactiveNodeColor = '#699600';
+
 
 export { TransactionSequenceDiagram };
