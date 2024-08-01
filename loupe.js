@@ -35,14 +35,6 @@ $.getJSON('ambaviz_messages.json')
         );
 
         xsd.timescale = data.timescale;
-
-        // //FIXME: should I dump them all?
-        // let count = 0;
-        // for(let msg in data.messages) {
-        //     xsd.addOrUpdateMessage(data.messages[msg]);
-        // }
-
-        // xsd.draw();
         
         // consume and build up the decoders
         Object.entries(data.decoders).forEach( ([name, fieldDecoderArray]) => {
@@ -80,16 +72,52 @@ $.getJSON('ambaviz_messages.json')
                 xsd.addOrUpdateMessage(dataItem);
                 xsd.draw();
 
+                // when we click on a message in the grid we update the 
+                // decoded flit grid
                 let decoded = flitDecoders[dataItem.decoder];
                 decoded.value = BigInt(dataItem.flit);
                 flitGrid.dataSource.data(decoded.fields);
             },
             dataBound: function(e) {
                 // Call the resize method after the grid has been databound
+                // the old horrible timeout trickery
                 setTimeout(function() {
                     $(window).resize();
-                }, 100);            },
-                // the old horrible timeout trickery
+                }, 10);            
+                console.log("dataBound");
+
+                // Access the grid instance
+                var grid = this;
+                
+                // Get the data source
+                var dataSource = grid.dataSource;
+                
+                // Get the data items
+                var dataItems = dataSource.view(); // .view() returns the data items for the current page
+
+                xsd.msgs = [];
+                xsd.lastSwimlaneAdded = undefined;
+                xsd.swimlanes = [];
+
+                let minTime = Number.MAX_SAFE_INTEGER;
+                let maxTime = Number.MIN_SAFE_INTEGER;
+
+                // Iterate over the data items
+                dataItems.forEach(function(item) {
+                    let msg = xsd.addOrUpdateMessage(item); // Process each item as needed
+                    if(msg.time < minTime) {
+                        minTime = msg.time;
+                    }
+                    if(msg.endTs > maxTime) {
+                        maxTime = msg.endTs;
+                    }   
+                });
+
+                xsd.canvasSetTime(minTime, maxTime);
+                xsd.draw();
+    
+            },
+                
 
             filterable: true
         });

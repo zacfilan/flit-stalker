@@ -227,11 +227,6 @@ class Message {
     }
 }
 
-/** The number of messages in memory
- * these will also be the id's of the messages
- */
-Message.count = 0;
-
 /**
  * A message only comes in with one timestamp, i assume that is the start, so
  * the end of the message is this much later
@@ -274,18 +269,7 @@ class TransactionSequenceDiagram {
         /** the timescale of the sime */
         this.timescale = null;
 
-        /** the start sim time of the display window.
-         * theis depends on the messages we want to display int he window
-         */
-        this.startTime = startTime;
-        
-        /** then end sim time of the display window.
-         * this depends on the messages we want to display in the window
-         */
-        this.endTime = endTime;
-
-        /** the simtime duration that the display window covers */
-        this.timeDuration = this.endTime - this.startTime;
+        this.canvasSetTime(startTime, endTime);
 
         /** the x-origin for the transactions */
         this.xorigin = 0;
@@ -418,9 +402,10 @@ class TransactionSequenceDiagram {
 
                 console.log(`top:${zoomTop} height:${zoomHeight}`);
 
-                that.startTime = that.canvasYOffsetToTime(zoomTop);
-                that.endTime = that.canvasYOffsetToTime(zoomTop + zoomHeight);
-                that.timeDuration = that.endTime - that.startTime;
+                that.canvasSetTime(
+                    that.canvasYOffsetToTime(zoomTop), 
+                    that.canvasYOffsetToTime(zoomTop + zoomHeight)
+                );
 
                 // Remove the highlight div from the DOM
                 if (highlightDiv) {
@@ -622,15 +607,7 @@ class TransactionSequenceDiagram {
             msg.end = this.addSwimlane(msg['Target Scope']);
         }
 
-        // update the time range of the diagram
         msg.time = +msg.Timestamp.replace(/,/g, '');
-        if(msg.time < this.startTime) {
-            this.startTime = msg.time;
-        }
-        if(this.endTime < msg.time) {
-            this.endTime = msg.time;
-        }
-        this.timeDuration = (this.endTime - this.startTime) || 100; // FIXME: edge case
 
         msg.label = new Label({
             text: msg.Message,
@@ -643,10 +620,18 @@ class TransactionSequenceDiagram {
 
         let message = new Message(msg);
         this.lastMessageSelected = message;
-        this.msgs[Message.count++] = message;
+        this.msgs.push(message);
         //console.log(`added message`, message);
-
+        return message;
         //this.draw();
+    }
+
+    scrollToMessage(msg) {
+        // keep the current duration size, but move the start and end times
+        let midPoint = this.duration/2;
+        let newStartTime = msg.time - midPoint; // FIXME: prevent negative
+        let newEndTime = newStartTime + this.duration;
+        this.canvasSetTime(newStartTime, newEndTime);        
     }
 
     // this draws the axis' of the grid
@@ -690,11 +675,6 @@ class TransactionSequenceDiagram {
 
         // only need to draw the messages in the time duration window
         for (let msg of this.msgs) {
-            // FIXME: this is CRAZY slow to do this. Use a binary search to find the first and last
-            if(!(this.startTime <= msg.time && msg.endTs <= this.endTime)) {
-                return;
-            }
-
             let y1 = this.canvasTimeToYOffset(msg.time);
             let y2 = this.canvasTimeToYOffset(msg.endTs);
 
@@ -729,30 +709,48 @@ class TransactionSequenceDiagram {
 
     // zooming in 
     zoomIn() {
-        this.startTime *= 2;
-        this.endTime /= 2;
-        this.timeDuration = this.endTime - this.startTime;    
+        this.canvasSetTime(this.startTime *2, this.endTime / 2);
         this.draw();
     }
 
     zoomOut() {
         // when i zoom out the large difference become smaller
         // i effectively contract the y-axis
-        this.startTime /= 2;
-        this.endTime *= 2;
-        this.timeDuration = this.endTime - this.startTime;
+        this.canvasSetTime(this.startTime / 2, this.endTime * 2);
         this.draw();
     }
 
-            // given any 0 based height in pixels in the canvas convert that to
-        // a time offset
+    // given any 0 based height in pixels in the canvas convert that to
+    // a time offset
     canvasYOffsetToTime(offset) {
         return this.startTime + (parseInt(offset) / this.canvasHeight) * this.timeDuration;
     }
 
-        // inverse of above
+    // inverse of above
     canvasTimeToYOffset(time) {
             return (time - this.startTime) / this.timeDuration * this.canvasHeight;
+    }
+
+    /** set the start, end and time duration of the canvas */
+    canvasSetTime(startTime, endTime) {
+        /** the start sim time of the display window.
+         * theis depends on the messages we want to display int he window
+         */
+        this.startTime = startTime;
+        
+        /** then end sim time of the display window.
+         * this depends on the messages we want to display in the window
+         */
+        this.endTime = endTime;
+
+        /** the simtime duration that the display window covers */
+        this.timeDuration = this.endTime - this.startTime;
+
+        // now we buffer
+        let pad_50 = this.timeDuration/this.canvas.height * 50;
+        this.startTime -= pad_50;
+        this.endTime += pad_50;
+        this.timeDuration = this.endTime - this.startTime;
     }
 
 }
