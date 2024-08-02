@@ -509,7 +509,9 @@ class TransactionSequenceDiagram {
                     return; // don't move past the x-origin
                 }
 
-                that.activeSwimlane.center.x = event.clientX - 118;
+                // FIXME: hacky way to get the scrollable...
+                that.activeSwimlane.center.x = this.parentElement.parentElement.scrollLeft + event.clientX - 118;
+                
                 that.activeSwimlane._calcBB(); // if i only change one this is faster
 
                 that.draw();
