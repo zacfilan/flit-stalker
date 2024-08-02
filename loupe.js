@@ -135,7 +135,11 @@ $.getJSON('ambaviz_messages.json')
                     }   
                 });
 
-                xsd.canvasSetTime(minTime, maxTime);
+                if(!xsd.zoomAction) {
+                    xsd.canvasSetTime(minTime, maxTime);
+                }
+                // for zoom actions just use the current zoom time scale
+                xsd.zoomAction = false;
                 xsd.draw();
     
             },

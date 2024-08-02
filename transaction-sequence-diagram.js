@@ -757,15 +757,62 @@ class TransactionSequenceDiagram {
 
     // zooming in 
     zoomIn() {
-        this.canvasSetTime(this.startTime * 2, this.endTime / 2);
-        this.draw();
+        // i want the duration to double so the timescale looks zoomed in by 100%
+        let zoom = 1.2; // say 20% each time
+        let zoomDuration = this.timeDuration / zoom; // smaller duration means zoom in
+        // the start time should be where we are scrolled to
+        // for 0 it stays the same
+        let newStartTime = this.startTime;
+        let newEndTime = this.startTime + zoomDuration;
+
+        var filter = {
+            logic: "and",
+            filters: [
+                { field: "Timestamp", operator: "gte", value: newStartTime },
+                { field: "Timestamp", operator: "lte", value: newEndTime }
+            ]
+        };
+        // Apply the filter to the grid's data source
+        $("#grid").data("kendoGrid").dataSource.filter(filter);
+        console.log("zoom in", this.startTime, this.endTime);
     }
 
     zoomOut() {
-        // when i zoom out the large difference become smaller
-        // i effectively contract the y-axis
-        this.canvasSetTime(this.startTime / 2, this.endTime * 2);
-        this.draw();
+        this.zoomAction = true;
+        
+        // i want the duration to double so the timescale looks zoomed in by 100%
+        let zoom = 1.2; // say 20% each time
+        let zoomDuration = this.timeDuration * zoom; // smaller duration means zoom in
+        // the start time should be where we are scrolled to
+        // for 0 it stays the same
+        let newStartTime = this.startTime;
+        let newEndTime = this.startTime + zoomDuration;
+
+        let grid = $("#grid").data("kendoGrid");
+
+        // Need to remove the previous timefilter to get full range again
+        let currentFilters = grid.dataSource.filter();
+        if (currentFilters) {
+            // Filter out the filter for the specific column
+            currentFilters.filters = currentFilters.filters.filter(function(filter) {
+                return filter.field !== 'Timestamp';
+            });
+        }
+
+        var filter = {
+            logic: "and",
+            filters: [
+                { field: "Timestamp", operator: "gte", value: newStartTime },
+                { field: "Timestamp", operator: "lte", value: newEndTime }
+            ]
+        };
+
+        currentFilters.filters.push(filter);
+        
+        // Apply the filter to the grid's data source
+        this.canvasSetTime(newStartTime, newEndTime);
+        grid.dataSource.filter(currentFilters);
+        console.log("zoom out", this.startTime, this.endTime);
     }
 
     // given any 0 based height in pixels in the canvas convert that to
