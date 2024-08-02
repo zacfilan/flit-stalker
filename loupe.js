@@ -51,11 +51,19 @@ $.getJSON('ambaviz_messages.json')
             resizable: true,
         }).data("kendoGrid");
 
+        let filterOnContainsOnly = {
+            operators: {
+                string: {
+                    contains: "Contains"
+                }
+            }
+        };
+
         let msgGrid = $("#grid").kendoGrid({
             columns: [
-                { field: "Message" },
-                { field: "Source Scope" },
-                { field: "Target Scope" },
+                { field: "Message", filterable: filterOnContainsOnly },
+                { field: "Source Scope", filterable: filterOnContainsOnly },
+                { field: "Target Scope", filterable: filterOnContainsOnly },
                 {
                     field: "Timestamp", 
                     type: "number", 
