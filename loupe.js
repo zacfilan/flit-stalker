@@ -82,7 +82,8 @@ $.getJSON('ambaviz_messages.json')
                 var selectedRows = this.select();
                 var dataItem = this.dataItem(selectedRows[0]);
                 console.log(dataItem);
-                xsd.addOrUpdateMessage(dataItem);
+
+                xsd.selectedMessageId = dataItem.id;
                 xsd.draw();
 
                 // when we click on a message in the grid we update the 
