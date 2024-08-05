@@ -25,7 +25,8 @@ enter-workspace <whatever>
 cd <whatever sim output>
 export FLIT_STALKER=~/flit-stalker
 ```
-From inside your simout directory (the one that contains the Ambaviz dump)
+
+You must be in a workspace, before you issue the following comamnd. From inside your simout directory (the one that contains the Ambaviz dump)
 
 ```
 make -f $FLIT_STALKER/serve_ambaviz_data.mk
