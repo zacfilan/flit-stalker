@@ -5,7 +5,7 @@ Flits are represented as arrows between swim lanes.
 
 ## JSON Input
 
-All flit data is supplied via a single JSON file. This format (schema) is documented via the JSON Schema specification [here](docs/fs_schema.json).
+All flit data is supplied via a single JSON file. This format (schema) is documented via the JSON Schema specification [here](doc/flit_stalker_schema.json).
 
 ## Quick Start
 

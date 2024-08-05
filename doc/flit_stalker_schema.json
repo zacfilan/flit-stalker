@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "timescale": {
+      "type": "string"
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "Message": {
+            "type": "string"
+          },
+          "Source Scope": {
+            "type": "string"
+          },
+          "Target Scope": {
+            "type": "string"
+          },
+          "Timestamp": {
+            "type": "integer"
+          },
+          "endTs": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "flit": {
+            "type": "string"
+          },
+          "decoder": {
+            "type": "string"
+          }
+        },
+        "required": ["Message", "Source Scope", "Target Scope", "Timestamp", "endTs", "id", "flit", "decoder"]
+      }
+    },
+    "decoders": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "lsb": {
+              "type": "integer"
+            },
+            "msb": {
+              "type": "integer"
+            }
+          },
+          "required": ["name", "lsb", "msb"]
+        }
+      }
+    }
+  },
+  "required": ["timescale", "messages", "decoders"]
+}
