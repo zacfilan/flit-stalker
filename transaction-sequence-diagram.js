@@ -667,16 +667,6 @@ class TransactionSequenceDiagram {
         //this.draw();
     }
 
-    // FIXME: this only works if the messages thatr are in the duration are
-    // always shown
-    scrollToMessage(msg) {
-        // keep the current duration size, but move the start and end times
-        let midPoint = this.duration / 2;
-        let newStartTime = msg.time - midPoint; // FIXME: prevent negative
-        let newEndTime = newStartTime + this.duration;
-        this.canvasSetTime(newStartTime, newEndTime);
-    }
-
     // this draws the axis' of the grid
     drawAxis() {
         this.hctx.strokeStyle = TransactionSequenceDiagram.axisColor;

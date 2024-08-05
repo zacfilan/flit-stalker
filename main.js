@@ -74,21 +74,6 @@ async function main() {
         ],
         resizable: true,
         selectable: "row",
-        change: function (e) {
-            var selectedRows = this.select();
-            var dataItem = this.dataItem(selectedRows[0]);
-            console.log(dataItem);
-
-            xsd.selectedMessageId = dataItem.id;
-            xsd.draw();
-
-            // when we click on a message in the grid we update the 
-            // decoded flit grid
-            let decoded = flitDecoders[dataItem.decoder];
-            decoded.value = BigInt(dataItem.flit);
-            flitGrid.dataSource.data(decoded.fields);
-        },
-
         filterable: true
     }).data("kendoGrid");
 
@@ -110,55 +95,6 @@ async function main() {
     let response = await fetch('ambaviz_messages.json');
     let data = await response.json();
 
-    
-    // add the data bound now
-    msgGrid.setOptions({
-        dataBound: function (e) {
-        // Call the resize method after the grid has been databound
-        // the old horrible timeout trickery
-        setTimeout(function () {
-            $(window).resize();
-        }, 10);
-        console.log("dataBound");
-
-        // Access the grid instance
-        var grid = this;
-
-        // Get the data source
-        var dataSource = grid.dataSource;
-
-        // Get the data items
-        var dataItems = dataSource.view(); // .view() returns the data items for the current page
-
-        xsd.msgs = [];
-        xsd.lastSwimlaneAdded = undefined;
-        xsd.swimlanes = [];
-
-        let minTime = Number.MAX_SAFE_INTEGER;
-        let maxTime = Number.MIN_SAFE_INTEGER;
-
-        // Iterate over the data items
-        dataItems.forEach(function (item) {
-            let msg = xsd.addOrUpdateMessage(item); // Process each item as needed
-            if (msg.time < minTime) {
-                minTime = msg.time;
-            }
-            if (msg.endTs > maxTime) {
-                maxTime = msg.endTs;
-            }
-        });
-
-        if (!xsd.zoomAction) {
-            xsd.canvasSetTime(minTime, maxTime);
-        }
-        // for zoom actions just use the current zoom time scale
-        xsd.zoomAction = false;
-        xsd.draw();
-        }
-    });
-
-    kendo.ui.progress(gridElement, false); // Hide the progress indicator
-
     let startTime = data.messages[0].Timestamp;
     let endTime = data.messages[data.messages.length - 1].endTs;
 
@@ -175,6 +111,78 @@ async function main() {
     Object.entries(data.decoders).forEach(([name, fieldDecoderArray]) => {
         flitDecoders[name] = new Flit(fieldDecoderArray);
     });
+
+    // add the data bound now
+    msgGrid.setOptions({
+        dataBound: function (e) {
+            // Call the resize method after the grid has been databound
+            // the old horrible timeout trickery
+            setTimeout(function () {
+                $(window).resize();
+            }, 10);
+            console.log("dataBound");
+
+            // Access the grid instance
+            var grid = this;
+
+            // Get the data source
+            var dataSource = grid.dataSource;
+
+            // Get the data items
+            var dataItems = dataSource.view(); // .view() returns the data items for the current page
+
+            xsd.msgs = [];
+            xsd.lastSwimlaneAdded = undefined;
+            xsd.swimlanes = [];
+
+            let minTime = Number.MAX_SAFE_INTEGER;
+            let maxTime = Number.MIN_SAFE_INTEGER;
+
+            // Iterate over the data items
+            dataItems.forEach(function (item) {
+                let msg = xsd.addOrUpdateMessage(item); // Process each item as needed
+                if (msg.time < minTime) {
+                    minTime = msg.time;
+                }
+                if (msg.endTs > maxTime) {
+                    maxTime = msg.endTs;
+                }
+            });
+
+            if (!xsd.zoomAction) {
+                xsd.canvasSetTime(minTime, maxTime);
+            }
+            // for zoom actions just use the current zoom time scale
+            xsd.zoomAction = false;
+            xsd.draw();
+        },
+        change: function (e) {
+            var selectedRows = this.select();
+            var dataItem = this.dataItem(selectedRows[0]);
+            console.log(dataItem);
+
+            xsd.selectedMessageId = dataItem.id;
+            xsd.draw();
+
+            // scroll the canvas to the msg center x maybe plus a bit
+            $('#topPane')[0].scrollTo(
+                Math.min(dataItem.start._x1, dataItem.label._x1) - 10,  
+                dataItem.label._center.y - 50);
+
+            // when we click on a message in the grid we update the 
+            // decoded flit grid
+            let decoded = flitDecoders[dataItem.decoder];
+            decoded.value = BigInt(dataItem.flit);
+            flitGrid.dataSource.data(decoded.fields);
+
+            // scroll to the bottom of the flit grid
+
+        },
+    });
+
+    kendo.ui.progress(gridElement, false); // Hide the progress indicator
+
+
 
     msgGrid.dataSource.data(data.messages);
 
