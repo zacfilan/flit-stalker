@@ -109,6 +109,7 @@ async function main() {
 
     let response = await fetch('ambaviz_messages.json');
     let data = await response.json();
+
     
     // add the data bound now
     msgGrid.setOptions({
@@ -200,4 +201,12 @@ async function main() {
     });
 };
 
-await main();
+try {
+    await main();
+}
+catch(e) {
+    let gridElement = $("#grid");
+    kendo.ui.progress(gridElement, false); // Hide the progress indicator
+    console.log(e);
+    alert(`Unhandled Exception\n\n${e}`);
+}   
