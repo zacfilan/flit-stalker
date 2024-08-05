@@ -777,6 +777,9 @@ class TransactionSequenceDiagram {
                 return filter.field !== 'Timestamp';
             });
         }
+        else {
+            currentFilters = { filters: []};
+        }
 
         var filter = {
             logic: "and",
@@ -813,6 +816,9 @@ class TransactionSequenceDiagram {
             currentFilters.filters = currentFilters.filters.filter(function(filter) {
                 return filter.field !== 'Timestamp';
             });
+        }
+        else {
+            currentFilters = { filters: []};
         }
 
         var filter = {

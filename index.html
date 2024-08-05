@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <title>Flit Stalker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="kendo/styles/default-ocean-blue.css" rel="stylesheet">
     <script src="kendo/js/jquery.min.js"></script>
     <script src="kendo/js/kendo.all.min.js"></script>
@@ -13,23 +14,18 @@
     <ul id="menu">
         <li>File
             <ul>
-                <li>Sub Item 1</li>
-                <li>Sub Item 2</li>
-                <li>Sub Item 3</li>
+                <li>TBD</li>
             </ul>
         </li>
         <li>View
             <ul>
-                <li>Sub Item 1</li>
-                <li>Sub Item 2</li>
-                <li>Sub Item 3</li>
+                <li>TBD</li>
             </ul>
         </li>
         <li>Help
             <ul>
-                <li>Sub Item 1</li>
-                <li>Sub Item 2</li>
-                <li>Sub Item 3</li>
+                <li>About</li>
+                <li>Report Issue</li>
             </ul>
         </li>
     </ul>
@@ -66,6 +62,8 @@
             flex-direction: column;
             height: 100vh;
             margin: 0;
+            font-family: 'Roboto', sans-serif;
+
         }
 
         #hSplitter {
@@ -189,6 +187,16 @@
             background-color: unset; 
             color:unset;
         } 
+
+                /* Hide Kendo Menu expand arrow */
+        .k-menu-expand-arrow {
+            display: none;
+        }
+        
+        .k-menu-link-text {
+            color: #666666;
+            font-size: 14px;
+        }
     </style>
 
 </body>

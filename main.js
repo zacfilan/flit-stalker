@@ -7,7 +7,19 @@ async function main() {
     }
 
     $("#menu").kendoMenu({
-        openOnClick: true
+        openOnClick: true,
+        select: function(e) {
+            var item = $(e.item);
+            var text = item.children(".k-link").text();
+    
+            // Perform actions based on the selected item
+            if (text === "About") {
+                window.open("https://github.com/zacfilan/flit-stalker", "_blank");
+            } 
+            else if (text === "Report Issue") {
+                window.open("https://github.com/zacfilan/flit-stalker/issues", "_blank");
+            }
+        }
     });
 
     $("#hSplitter").kendoSplitter({
@@ -173,13 +185,17 @@ async function main() {
         var grid = $("#grid").data("kendoGrid");
         grid.dataSource.filter({});
         console.log("clearing filters");
-    });
+    }); 
 
     $("#toolbar").kendoToolBar({
         items: [
-            { type: "button", text: "ZoomIn", click: x => xsd.zoomIn() },
+            { 
+                type: "button", 
+                text: "ZoomIn",
+                click: x => xsd.zoomIn() 
+            },
             { type: "button", text: "ZoomOut", click: x => xsd.zoomOut() },
-            { type: "splitButton", text: "SplitButton", menuButtons: [{ text: "Option 1" }, { text: "Option 2" }] }
+//            { type: "splitButton", text: "SplitButton", menuButtons: [{ text: "Option 1" }, { text: "Option 2" }] }
         ]
     });
 };
