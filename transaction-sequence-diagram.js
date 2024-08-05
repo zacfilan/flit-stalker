@@ -511,7 +511,7 @@ class TransactionSequenceDiagram {
 
                 // FIXME: hacky way to get the scrollable...
                 that.activeSwimlane.center.x = this.parentElement.parentElement.scrollLeft + event.clientX - 118;
-                
+
                 that.activeSwimlane._calcBB(); // if i only change one this is faster
 
                 that.draw();
@@ -767,6 +767,17 @@ class TransactionSequenceDiagram {
         let newStartTime = this.startTime;
         let newEndTime = this.startTime + zoomDuration;
 
+        let grid = $("#grid").data("kendoGrid");
+
+        // Need to remove the previous timefilter to get full range again
+        let currentFilters = grid.dataSource.filter();
+        if (currentFilters) {
+            // Filter out the filter for the specific column
+            currentFilters.filters = currentFilters.filters.filter(function(filter) {
+                return filter.field !== 'Timestamp';
+            });
+        }
+
         var filter = {
             logic: "and",
             filters: [
@@ -774,8 +785,11 @@ class TransactionSequenceDiagram {
                 { field: "Timestamp", operator: "lte", value: newEndTime }
             ]
         };
+
+        currentFilters.filters.push(filter);
         // Apply the filter to the grid's data source
-        $("#grid").data("kendoGrid").dataSource.filter(filter);
+        $("#grid").data("kendoGrid").dataSource.filter(currentFilters);
+
         console.log("zoom in", this.startTime, this.endTime);
     }
 
