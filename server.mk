@@ -1,5 +1,5 @@
 # this is intended to be run from within an ambaviz containing sim output directory like
-# $ make -f $FLIT_STALKER/server.mk
+# $ make -f $FLIT_STALKER/serve_ambaviz_data.mk
 # so you'll need to set FLIT_STALKER to the location of your local install
 # (this script needs to know where flit stalker is installed)
 
@@ -16,7 +16,7 @@ endif
 # endif
 
 # we need the output dir, expected and actual to see a diff
-all: flit_stalker flit_stalker/config.json flit_stalker/ambaviz_messages.json flit_stalker/server start_server
+all: flit_stalker flit_stalker/ambaviz_messages.json flit_stalker/server start_server
 
 clean: 
 	rm -rf flit_stalker
@@ -30,7 +30,7 @@ flit_stalker:
 flit_stalker/ambaviz_messages.json: dump_0.avdb $(FLIT_STALKER)/etc/ambaviz2json.gvy
 	with-eda $(SOC_REPO_VERIF)/common/ambaviz/triton-gvy.sh -f dump_0.avdb -g $(FLIT_STALKER)/etc/ambaviz2json.gvy > $@
 
- flit_stalker/server: flit_stalker/etc/server.c
+ flit_stalker/server: flit_stalker/server.c
 	gcc $^ -o $@
 
 start_server: flit_stalker/server
@@ -42,7 +42,7 @@ start_server: flit_stalker/server
 		echo "Unzipping $< to create $@"; \
 		gunzip -k $<; \
 	else \
-    	echo "$@ already exists, skipping unzipping"; \
+	echo "$@ already exists, skipping unzipping"; \
 	fi
 
 
