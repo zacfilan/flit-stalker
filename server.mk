@@ -10,10 +10,10 @@ ifndef FLIT_STALKER
 $(error FLIT_STALKER is not set)
 endif
 
-# Check if SOC_REPO_VERIF is set
-# ifndef SOC_REPO_VERIF
-# $(error SOC_REPO_VERIF is not set - enter workspace?)
-# endif
+Check if SOC_REPO_VERIF is set
+ifndef SOC_REPO_VERIF
+$(error SOC_REPO_VERIF is not set - enter workspace?)
+endif
 
 # we need the output dir, expected and actual to see a diff
 all: flit_stalker flit_stalker/ambaviz_messages.json flit_stalker/server start_server
