@@ -211,36 +211,37 @@ class Message {
      * Draw the message on the given canvas
      * @param {Canvas} ctx the canvas context
      */
-    draw(ctx, startPoint, endPoint) {
+    draw(xsd, startPoint, endPoint) {
         var headlen = 10; // length of head in pixels
         var dx = endPoint.x - startPoint.x;
         var dy = endPoint.y - startPoint.y;
         var angle = Math.atan2(dy, dx);
-        ctx.beginPath();
-        ctx.moveTo(startPoint.x, startPoint.y);
-        ctx.lineTo(endPoint.x, endPoint.y);
-        ctx.stroke();
+        xsd.ctx.beginPath();
+        xsd.ctx.moveTo(startPoint.x, startPoint.y);
+        xsd.ctx.lineTo(endPoint.x, endPoint.y);
+        xsd.ctx.stroke();
 
         // Draw the arrow head as a filled triangle
-        ctx.beginPath();
-        ctx.moveTo(endPoint.x, endPoint.y);
-        ctx.lineTo(endPoint.x - headlen * Math.cos(angle - Math.PI / 6), endPoint.y - headlen * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(endPoint.x - headlen * Math.cos(angle + Math.PI / 6), endPoint.y - headlen * Math.sin(angle + Math.PI / 6));
-        ctx.closePath(); // Close the path
-        ctx.fill(); // Fill the path
+        xsd.ctx.beginPath();
+        xsd.ctx.moveTo(endPoint.x, endPoint.y);
+        xsd.ctx.lineTo(endPoint.x - headlen * Math.cos(angle - Math.PI / 6), endPoint.y - headlen * Math.sin(angle - Math.PI / 6));
+        xsd.ctx.lineTo(endPoint.x - headlen * Math.cos(angle + Math.PI / 6), endPoint.y - headlen * Math.sin(angle + Math.PI / 6));
+        xsd.ctx.closePath(); // Close the path
+        xsd.ctx.fill(); // Fill the path
 
         // draw the label of the message
-        ctx.fillStyle = '#c9c9bb';
+        xsd.ctx.fillStyle = '#c9c9bb';
         this.label.center = new Point(
             (startPoint.x + endPoint.x) / 2,
             (startPoint.y + endPoint.y) / 2);
-        this.label.draw(ctx);
+        this.label.draw(xsd.ctx);
 
         // FIXME:
         // This will go into another element
         // // draw the timestamp 
-        // ctx.fillText(this.Timestamp, 50, startPoint.y);
+        xsd.timeTroughCtx.fillStyle = '#c9c9bb';
 
+        xsd.timeTroughCtx.fillText(this.Timestamp.toLocaleString(), 50, (startPoint.y + endPoint.y) / 2);
 
     }
 }
@@ -270,12 +271,19 @@ class Point {
  * This is the TransactionSequenceDiagram widget. view and model.
  */
 class TransactionSequenceDiagram {
-    constructor(startTime, endTime, hcanvas, canvas) {
+    constructor(startTime, endTime, element) {
+        this.element = element;
+
+        let hcanvas = $("#swimlane-header")[0];
         this.hctx = hcanvas.getContext('2d');
-        this.canvas = canvas;
+
+        let canvas = this.canvas = $("#swimlane")[0];
         this.ctx = canvas.getContext('2d');
 
-        for (let ctx of [this.ctx, this.hctx]) {
+        this.timeTrough = document.getElementById('time-trough');
+        this.timeTroughCtx = this.timeTrough.getContext('2d');  
+
+        for (let ctx of [this.ctx, this.hctx, this.timeTroughCtx]) {
             ctx.fillStyle = 'white';
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 1;
@@ -346,13 +354,8 @@ class TransactionSequenceDiagram {
         let isThrottled = false;
         let delay = 100; // milliseconds
 
-
-
-
-
-
         $(document).ready(function () {
-            const draggable = document.getElementById('time-trough');
+            const draggable = that.timeTrough;
             let startY = 0;
             let currentY = 0;
             let isDragging = false;
@@ -602,6 +605,7 @@ class TransactionSequenceDiagram {
     clear() {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
         this.hctx.clearRect(0, 0, this.hctx.canvas.width, this.hctx.canvas.height);
+        this.timeTroughCtx.clearRect(0, 0, this.timeTroughCtx.canvas.width, this.timeTroughCtx.canvas.height);
     }
 
     /**
@@ -740,7 +744,7 @@ class TransactionSequenceDiagram {
                 this.ctx.strokeStyle = TransactionSequenceDiagram.inactiveSwimlaneColor;
                 this.ctx.fillStyle = TransactionSequenceDiagram.inactiveSwimlaneColor;
             }
-            msg.draw(this.ctx, startPoint, endPoint);
+            msg.draw(this, startPoint, endPoint);
 
 
         }

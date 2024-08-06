@@ -101,8 +101,7 @@ async function main() {
     let xsd = new TransactionSequenceDiagram(
         startTime,
         endTime,
-        $("#swimlane-header")[0],
-        $("#swimlane")[0]
+        $("#topPane")[0]
     );
 
     xsd.timescale = data.timescale;
