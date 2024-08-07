@@ -53,7 +53,10 @@
         </div>
         <div id="flit-grid"></div>
     </div>
-
+    <!-- reuse the same element for all the dialogs -->
+    <div id="dialog">
+        <div id='filterContainer'></div>
+    </div>
     <script type="module" src="main.js"></script>
 
     <style>
@@ -77,12 +80,12 @@
         .container {
             overflow: auto;
         }
-        
+
         .header-container {
             display: inline-flex;
             position: sticky;
             top: 0;
-            z-index: 1; 
+            z-index: 1;
             box-sizing: border-box;
             border-bottom: 2px solid #93a1a1;
         }
@@ -104,16 +107,16 @@
         .header {
             width: 1920px;
             height: 50px;
- 
 
-            background:#00252e;
+
+            background: #00252e;
             color: #c9c9bb;
 
         }
 
-         .content {
+        .content {
             display: inline-flex;
-        } 
+        }
 
         .left {
             width: 118px;
@@ -178,24 +181,36 @@
                 background-color: #ccc;
                 /* Replace $hover-scrollbar with the actual color value */
             }
-            user-select: none; /* Disable text selection for all elements */
+
+            user-select: none;
+            /* Disable text selection for all elements */
 
         }
 
         /* Prevent Kendo Splitters from turning blue when selected */
-        .k-splitbar:focus, .k-splitbar.k-focus {
-            background-color: unset; 
-            color:unset;
-        } 
+        .k-splitbar:focus,
+        .k-splitbar.k-focus {
+            background-color: unset;
+            color: unset;
+        }
 
-                /* Hide Kendo Menu expand arrow */
+        /* Hide Kendo Menu expand arrow */
         .k-menu-expand-arrow {
             display: none;
         }
-        
+
         .k-menu-link-text {
             color: #666666;
             font-size: 14px;
+        }
+
+        #grid .ellipsis {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+            text-wrap: nowrap;
+            /* Adjust the max-width as needed */
         }
     </style>
 

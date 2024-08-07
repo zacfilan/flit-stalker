@@ -1,3 +1,4 @@
+import {Flit} from './flit.js';
 
 /**
  * Abstraction of a html-like nodes view area in TransactionSequenceDiagram
@@ -205,6 +206,15 @@ class Message {
         this.label = other.label;
 
         this.id = other.id;
+
+        /**
+         * provides decoded information about the flit 
+         * @type Flit 
+         * */
+        this.flit = other.flit;
+
+        /** used for filtering */
+        this.decodedFlitString = other.decodedFlitString;
     }
 
     /**
@@ -281,7 +291,7 @@ class TransactionSequenceDiagram {
         this.ctx = canvas.getContext('2d');
 
         this.timeTrough = document.getElementById('time-trough');
-        this.timeTroughCtx = this.timeTrough.getContext('2d');  
+        this.timeTroughCtx = this.timeTrough.getContext('2d');
 
         for (let ctx of [this.ctx, this.hctx, this.timeTroughCtx]) {
             ctx.fillStyle = 'white';
@@ -652,8 +662,7 @@ class TransactionSequenceDiagram {
             msg.end = this.addSwimlane(msg['Target Scope']);
         }
 
-        msg.time = msg.Timestamp;
-
+        this.selectedMessageId = msg.id;
         msg.label = new Label({
             text: msg.Message,
             center: new Point(
@@ -663,11 +672,9 @@ class TransactionSequenceDiagram {
             height: 12 + (2 * 5), // FIXME: hack
         });
 
-        let message = new Message(msg);
-        this.selectedMessageId = message.id;
-        this.msgs.push(message);
-        //console.log(`added message`, message);
-        return message;
+        this.msgs.push(msg);
+        //console.log(`added message`, msg);
+        return msg;
         //this.draw();
     }
 
@@ -736,7 +743,7 @@ class TransactionSequenceDiagram {
                 // this.canvas.parentElement.parentElement.scrollTop = y1;
                 msg.label.drawBorder(this.ctx);
             }
-            if(msg.id == this.selectedMessageId) { 
+            if (msg.id == this.selectedMessageId) {
                 this.ctx.strokeStyle = TransactionSequenceDiagram.activeSwimlaneColor;
                 this.ctx.fillStyle = TransactionSequenceDiagram.activeSwimlaneColor;
             }
@@ -767,12 +774,12 @@ class TransactionSequenceDiagram {
         let currentFilters = grid.dataSource.filter();
         if (currentFilters) {
             // Filter out the filter for the specific column
-            currentFilters.filters = currentFilters.filters.filter(function(filter) {
+            currentFilters.filters = currentFilters.filters.filter(function (filter) {
                 return filter.field !== 'Timestamp';
             });
         }
         else {
-            currentFilters = { filters: []};
+            currentFilters = { filters: [] };
         }
 
         var filter = {
@@ -792,7 +799,7 @@ class TransactionSequenceDiagram {
 
     zoomOut() {
         this.zoomAction = true;
-        
+
         // i want the duration to double so the timescale looks zoomed in by 100%
         let zoom = 1.2; // say 20% each time
         let zoomDuration = this.timeDuration * zoom; // smaller duration means zoom in
@@ -807,12 +814,12 @@ class TransactionSequenceDiagram {
         let currentFilters = grid.dataSource.filter();
         if (currentFilters) {
             // Filter out the filter for the specific column
-            currentFilters.filters = currentFilters.filters.filter(function(filter) {
+            currentFilters.filters = currentFilters.filters.filter(function (filter) {
                 return filter.field !== 'Timestamp';
             });
         }
         else {
-            currentFilters = { filters: []};
+            currentFilters = { filters: [] };
         }
 
         var filter = {
@@ -824,11 +831,120 @@ class TransactionSequenceDiagram {
         };
 
         currentFilters.filters.push(filter);
-        
+
         // Apply the filter to the grid's data source
         this.canvasSetTime(newStartTime, newEndTime);
         grid.dataSource.filter(currentFilters);
         console.log("zoom out", this.startTime, this.endTime);
+    }
+
+        /**
+     * open a dialog with an advanced search widget in it
+     */
+    advancedSearch() {
+        // will need to build the index for the flits
+        console.log("advanced search called");
+
+        this.dialog = $('#dialog').data("kendoDialog");
+        if(this.dialog) {
+            this.dialog.open();
+            return;
+        }
+
+        let that = this;
+        this.dialog = $('#dialog').kendoDialog({
+            width: "610px",
+            title: "Flit Search",
+            closable: true,
+            modal: true,
+            content: `
+            <div>
+                Create a complex query on the fields of a flit. This is a 
+                case-insensitive substring search on the Decoded Flit field of the 
+                Message. For example,
+                the format {FieldName}:{Decoded Field Value} will find any flits 
+                with the given FieldName and Decoded Field Value.
+            </div>    
+            </br>
+            <div>e.g. Opcode:WriteNoSnpPtl</div>
+            </div>
+            <div id='filterContainer'></div>
+            `,
+            actions: [
+                { text: 'Cancel' },
+                {
+                    text: 'Apply', 
+                    primary: true,
+                    action: function (e) {
+                        console.log("Apply button clicked");
+                        let filter = $("#filterContainer").data("kendoFilter");
+                        // Get the filter expression from the Kendo Filter widget
+                        console.log(that.filterExpression);
+                        /// Apply the filter expression to the grid
+                        let grid = $("#grid").data("kendoGrid");
+                        grid.dataSource.filter(that.filterExpression);
+                    }
+                }
+            ],
+            open: function () {
+                console.log("dialog opened");
+             },
+            close: function () {
+                console.log("dialog closed");
+            }
+        });
+
+        let defaultExpression = {
+            logic: "and",
+            filters: [
+                {
+                    field: "decodedFlitString",
+                    operator: "contains",
+                    value: "Opcode:WriteNoSnpPtl"
+                }
+            ]
+        };
+
+        // Define the options for each dropdown
+        // Initialize the Kendo Filter with custom editors
+        this.filter = $("#filterContainer").kendoFilter({
+            dataSource: $("#grid").data("kendoGrid").dataSource,
+            expressionPreview: true,
+            fields: [
+                {
+                    name: "decodedFlitString",
+                    type: "string",
+                    label: "Flit",
+                    operators: {
+                        string: {
+                            contains: "Contains",
+                            doesnotcontain: "Does not contain"
+                        }
+                    }
+                },
+            ],
+            expression: defaultExpression,
+            change: function (e) {
+                e.expression.filters.forEach(function(filter) {
+                    if (filter.operator === "contains") {
+                        filter.operator = function(item, value) {
+                            return item.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+                        };
+                    }
+                    else  {
+                        filter.operator = function(item, value) {
+                            return item.toLowerCase().indexOf(value.toLowerCase()) === -1;
+                        };
+                    }
+                });
+                // this allows me to access the filter expression when we hit the apply button on the dialog
+                that.filterExpression = e.expression;
+            }
+        }).data("kendoFilter");
+       
+        // Trigger the change event to apply the initial filter
+        this.filter.trigger("change", { expression: defaultExpression });
+
     }
 
     // given any 0 based height in pixels in the canvas convert that to
@@ -883,7 +999,7 @@ class TransactionSequenceDiagram {
                     label._y1 < mouseY && mouseY < label._y2) {
 
                     // mouse is over this node
-//                    console.log("compare that.hoveredMsg", that.hoveredMsg?.text, "label", label.text);
+                    //                    console.log("compare that.hoveredMsg", that.hoveredMsg?.text, "label", label.text);
 
                     if (that.hoveredMsg !== msg) {
                         // this node is now the active node
@@ -944,7 +1060,7 @@ class TransactionSequenceDiagram {
         });
 
         canvas.addEventListener('click', function (event) {
-            if(that.hoveredMsg) {
+            if (that.hoveredMsg) {
                 console.log("clicked on", that.hoveredMsg.label.text);
                 let grid = $("#grid").data("kendoGrid");
 
@@ -954,6 +1070,26 @@ class TransactionSequenceDiagram {
                 grid.trigger("change");
             }
         });
+    }
+
+    hydrateMessages(jsonMessages, flitDecoders) {
+        let messages = []
+        for (let i = 0; i < jsonMessages.length; i++) {
+            let msg = jsonMessages[i];
+            msg.time = msg.Timestamp;
+
+            // FIXME: am i being to memory greedy? I could calc all flit info
+            // as needed *on the fly* and not store any of it.
+            let flitValue = BigInt(msg.flit); 
+            // FIXME: this is extra memory ineffcient each flit instance carries
+            // a copy of the methods. no inheritance :( used. 
+            msg.flit = new Flit(flitDecoders[msg.decoder].fields);
+            msg.flit.value = flitValue;
+            msg.decodedFlitString = msg.flit.toString();
+            
+            messages.push(new Message(msg));
+        }
+        return messages;
     }
 
 
@@ -975,4 +1111,4 @@ TransactionSequenceDiagram.activeSwimlaneColor = '#65c7f1';
 TransactionSequenceDiagram.inactiveSwimlaneColor = '#699600';
 
 
-export { TransactionSequenceDiagram };
+export { TransactionSequenceDiagram, Message, Label, Point };

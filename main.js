@@ -33,15 +33,11 @@ async function main() {
     $("#tabstrip").kendoTabStrip({
     }).data("kendoTabStrip").select(0);
 
-    /** decoders for different types of flit 
-     * @type {Object.<string, Flit.Decoder>}
-     */
-    let flitDecoders = {};
-
     let filterOnContainsOnly = {
         operators: {
             string: {
-                contains: "Contains"
+                contains: "Contains",
+                doesnotcontain: "Does not contain"
             }
         }
     };
@@ -56,6 +52,12 @@ async function main() {
                 type: "number",
                 template: dataItem => dataItem.Timestamp?.toLocaleString()
             },
+            { 
+                field: "decodedFlitString", 
+                title: "Decoded Flit", 
+                filterable: filterOnContainsOnly,
+                attributes: {class: "ellipsis"}
+             },
         ],
         dataSource: {
             // data: [],
@@ -90,7 +92,6 @@ async function main() {
         resizable: true,
     }).data("kendoGrid");
 
-    //await sleep(5000);
 
     let response = await fetch('ambaviz_messages.json');
     let data = await response.json();
@@ -105,11 +106,6 @@ async function main() {
     );
 
     xsd.timescale = data.timescale;
-
-    // consume and build up the decoders
-    Object.entries(data.decoders).forEach(([name, fieldDecoderArray]) => {
-        flitDecoders[name] = new Flit(fieldDecoderArray);
-    });
 
     // add the data bound now
     msgGrid.setOptions({
@@ -168,25 +164,28 @@ async function main() {
                 Math.min(dataItem.start._x1, dataItem.label._x1) - 10,  
                 dataItem.label._center.y - 50);
 
-            // when we click on a message in the grid we update the 
-            // decoded flit grid
-            let decoded = flitDecoders[dataItem.decoder];
-            decoded.value = BigInt(dataItem.flit);
-            flitGrid.dataSource.data(decoded.fields);
+            flitGrid.dataSource.data(dataItem.flit.fields);
 
             // scroll to the bottom of the flit grid
-
         },
     });
 
+
+    /** decoders for different types of flit 
+     * singleton instances of a "flit"
+     * @type {Object.<string, Flit.Decoder>}
+     */
+    let flitDecoders = {};
+    Object.entries(data.decoders).forEach(([name, fieldDecoderArray]) => {
+        flitDecoders[name] = new Flit(fieldDecoderArray);
+    });
+    
+    // hydrate the messages 
+    let messages = xsd.hydrateMessages(data.messages, flitDecoders);
+
+    msgGrid.dataSource.data(messages);
+
     kendo.ui.progress(gridElement, false); // Hide the progress indicator
-
-
-
-    msgGrid.dataSource.data(data.messages);
-
-
-
 
     // Attach event handlers to the custom buttons
     $('button[data-role="clearfilters"]').on("click", function () {
@@ -203,6 +202,7 @@ async function main() {
                 click: x => xsd.zoomIn() 
             },
             { type: "button", text: "ZoomOut", click: x => xsd.zoomOut() },
+            { type: "button", text: "Advanced Search", click: x => xsd.advancedSearch() },
 //            { type: "splitButton", text: "SplitButton", menuButtons: [{ text: "Option 1" }, { text: "Option 2" }] }
         ]
     });

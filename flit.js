@@ -63,6 +63,10 @@ class FlitField {
         this.value = (value >> this.lsb) & mask;
     }
 
+    toString() {
+        return `${this.name}:${this.Decoded}`;
+    }
+
 }
 
 /**
@@ -91,6 +95,10 @@ class Flit {
         for(let field of fields) {
             this.fields.push(new FlitField(field));
         }
+    }
+
+    toString() {
+        return this.fields.map(field => field.toString()).join(" ");
     }
 
 }
